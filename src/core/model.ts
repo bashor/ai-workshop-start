@@ -22,6 +22,8 @@ export type Skill = {
   commit: string;
   /** The same skill in other agents' folders. */
   copies: string[];
+  /** The Markdown after the front matter. */
+  body: string;
 };
 
 /**
@@ -31,6 +33,12 @@ export type Skill = {
 export function skillLink(repository: Repository, skill: Skill): string {
   const path = skill.path.split('/').map(encodeURIComponent).join('/');
   return skill.commit ? `${repository.url}/blob/${skill.commit}/${path}` : `${repository.url}/${path}`;
+}
+
+/** The description's first sentence, on one line: what a list shows. */
+export function firstSentence(text: string): string {
+  const line = text.replace(/\s+/g, ' ').trim();
+  return /^.*?[.!?](?=\s|$)/.exec(line)?.[0] ?? line;
 }
 
 /** By name, then by path: the same order everywhere, whatever the locale. */

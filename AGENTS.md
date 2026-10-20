@@ -20,3 +20,4 @@ If everything is fine, push the changes to branch with some short name describin
 ## Commands
 - `npm ci`: first, in a fresh checkout
 - `npm test`: the tests
+- `npm run dev`: the web page on a local server; `npm run build`: the page as static files in `dist/`
