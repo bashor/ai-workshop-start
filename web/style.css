@@ -27,6 +27,10 @@ main { flex: 1; display: flex; min-height: 0; }
 #summary { font-size: 1rem; margin: 0.75rem 0.5rem; }
 #warnings { margin: 0 0.5rem 0.75rem; padding: 0.5rem 0.5rem 0.5rem 1.5rem; font-size: 0.85rem; background: color-mix(in srgb, orange 15%, transparent); border-radius: 6px; }
 #warnings:empty { display: none; }
+#filter-bar { display: flex; gap: 0.5rem; align-items: center; margin: 0 0.5rem 0.5rem; }
+#filter { flex: 1; min-width: 0; padding: 0.3rem 0.5rem; font: inherit; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: inherit; }
+#count { font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
+#list mark { background: color-mix(in srgb, var(--accent) 30%, transparent); color: inherit; border-radius: 2px; }
 #list { list-style: none; margin: 0; padding: 0; }
 #list .empty { padding: 0.5rem; color: var(--muted); }
 #list button { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: none; border: 0; border-radius: 6px; padding: 0.5rem; cursor: pointer; }

@@ -28,6 +28,8 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
   let shown: { repo: string; result?: ScanResult } | undefined;
   /** The skill to select, once the repository is scanned. */
   let wanted: string | undefined;
+  /** The skill shown on the right, by its path. */
+  let selected: string | undefined;
   /** Counts scans: only the latest one is shown. */
   let scans = 0;
 
@@ -100,7 +102,7 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
     }
   }
 
-  /** `owner/repo · N skills`, the warnings, then the skills as the CLI lists them. */
+  /** `owner/repo · N skills`, the warnings, the filter, then the skills as the CLI lists them. */
   function showResult({ repository, skills: found, warnings }: ScanResult) {
     const summary = element('h2', `${repository.id} · ${found.length} ${found.length === 1 ? 'skill' : 'skills'}`);
     summary.id = 'summary';
@@ -109,29 +111,84 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
     warningList.append(...warnings.map((warning) => element('li', warning)));
     const list = element('ul');
     list.id = 'list';
-    if (found.length === 0) list.append(element('li', 'No skills found', 'empty'));
-    for (const skill of found) {
-      const button = element('button');
-      button.type = 'button';
-      button.dataset.path = skill.path;
-      button.append(element('span', skill.name, 'name'), element('span', firstSentence(skill.description), 'description'));
-      if (skill.copies.length > 0) button.append(element('span', `also in ${skill.copies.join(', ')}`, 'copies'));
-      button.addEventListener('click', () => {
-        wanted = skill.path;
-        history.pushState(null, '', query({ repo: shown?.repo, skill: skill.path }));
-        select(skill.path);
-      });
-      const item = element('li');
-      item.append(button);
-      list.append(item);
+    if (found.length === 0) {
+      list.append(element('li', 'No skills found', 'empty'));
+      results.replaceChildren(summary, warningList, list);
+      return;
     }
-    results.replaceChildren(summary, warningList, list);
+    const filter = element('input');
+    filter.id = 'filter';
+    filter.type = 'search';
+    filter.placeholder = 'Filter skills';
+    filter.setAttribute('aria-label', 'Filter skills');
+    filter.autocomplete = 'off';
+    filter.spellcheck = false;
+    const count = element('span');
+    count.id = 'count';
+    count.setAttribute('aria-live', 'polite');
+    const bar = element('div');
+    bar.id = 'filter-bar';
+    bar.append(filter, count);
+    const showList = () => {
+      const pattern = matcher(filter.value);
+      const matched = found.filter((skill) => !pattern || pattern.test(skill.name) || pattern.test(firstSentence(skill.description)));
+      count.textContent = `${matched.length} of ${found.length}`;
+      list.replaceChildren(...matched.map((skill) => skillItem(skill, pattern)));
+      if (matched.length === 0) list.append(element('li', 'No skills match', 'empty'));
+    };
+    filter.addEventListener('input', showList);
+    showList();
+    results.replaceChildren(summary, warningList, bar, list);
+  }
+
+  /** Case-insensitive, the text taken literally; undefined when there is nothing to filter by. */
+  function matcher(text: string): RegExp | undefined {
+    const trimmed = text.trim();
+    // Not global: test() keeps no state between skills.
+    return trimmed ? new RegExp(trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'iu') : undefined;
+  }
+
+  /** A skill in the left panel, the parts matching `pattern` highlighted. */
+  function skillItem(skill: Skill, pattern: RegExp | undefined) {
+    const button = element('button');
+    button.type = 'button';
+    button.dataset.path = skill.path;
+    if (skill.path === selected) button.setAttribute('aria-current', 'true');
+    button.append(
+      highlighted(element('span', undefined, 'name'), skill.name, pattern),
+      highlighted(element('span', undefined, 'description'), firstSentence(skill.description), pattern),
+    );
+    if (skill.copies.length > 0) button.append(element('span', `also in ${skill.copies.join(', ')}`, 'copies'));
+    button.addEventListener('click', () => {
+      wanted = skill.path;
+      history.pushState(null, '', query({ repo: shown?.repo, skill: skill.path }));
+      select(skill.path);
+    });
+    const item = element('li');
+    item.append(button);
+    return item;
+  }
+
+  /** `text` in `container`, each match of `pattern` in a <mark>. */
+  function highlighted(container: HTMLElement, text: string, pattern: RegExp | undefined) {
+    if (!pattern) {
+      container.textContent = text;
+      return container;
+    }
+    let last = 0;
+    for (const match of text.matchAll(new RegExp(pattern.source, `${pattern.flags}g`))) {
+      container.append(text.slice(last, match.index), element('mark', match[0]));
+      last = match.index + match[0].length;
+    }
+    container.append(text.slice(last));
+    return container;
   }
 
   /** The skill at `path`, or the one `path` is a copy of. */
   function select(path: string | undefined) {
     const found = shown?.result?.skills ?? [];
     const skill = path === undefined ? undefined : found.find((skill) => skill.path === path || skill.copies.includes(path));
+    selected = skill?.path;
     for (const button of results.querySelectorAll<HTMLButtonElement>('#list button')) {
       if (button.dataset.path === skill?.path) button.setAttribute('aria-current', 'true');
       else button.removeAttribute('aria-current');
