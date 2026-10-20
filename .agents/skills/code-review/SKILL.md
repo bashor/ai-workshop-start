@@ -111,4 +111,5 @@ Handle prior findings in their threads, like a human reviewer would — not by r
 
 After posting the new review, hide your own previous review body from this automation (mark it as outdated/minimized) so only the latest review is prominent. Hide only the review body — never inline comment threads, and never anyone else's comments. If hiding isn't available, edit your previous review body instead: wrap its content in a collapsed `&lt;details&gt;&lt;summary&gt;Superseded by a newer review&lt;/summary&gt;...&lt;/details&gt;` block.
 
-The follow-up review body lists only what remains open (as `path:line` references to the existing threads) and anything newly found. If everything is resolved and no new findings exist, the body is the Clean format.</p>
+The follow-up review body lists only what remains open (as `path:line` references to the existing threads) and anything newly found. If everything is resolved and no new findings exist, the body is the Clean format.
+
