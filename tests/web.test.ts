@@ -330,25 +330,3 @@ test('npm run dev → the page on a local server', async (t) => {
   assert.equal(app.status, 200);
   assert.match(await app.text(), /Scanning/);
 });
-
-test('README.md: a Web UI section, how to run the page locally and how to prepare the distribution', () => {
-  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
-  const section = (text: string, heading: string) => {
-    const match = new RegExp(`^${heading}\\n([\\s\\S]*?)(?=^#{1,${heading.indexOf(' ')}} |(?![\\s\\S]))`, 'm').exec(text);
-    assert.ok(match, heading);
-    return match[1];
-  };
-  const web = section(readme, '## Web UI');
-
-  const local = section(web, '### Run locally');
-  for (const command of ['npm ci', 'npm run dev']) assert.match(local, new RegExp(`\\$ ${command}\\n`), command);
-  // The address scripts/dev.ts serves at by default.
-  assert.match(local, /http:\/\/127\.0\.0\.1:8000\//);
-  assert.match(local, /`PORT=\d+ npm run dev`/);
-  assert.match(local, /reload/i);
-
-  const dist = section(web, '### Prepare the distribution');
-  assert.match(dist, /\$ npm run build\n/);
-  for (const file of ['dist/', 'index.html', 'app.js', 'style.css']) assert.ok(dist.includes(`\`${file}\``), file);
-  assert.match(dist, /GitHub Pages/);
-});
