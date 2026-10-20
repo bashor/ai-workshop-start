@@ -57,14 +57,15 @@ test('a token → every GitHub API request of a repository scan carries it, the 
   for (const request of api(page)) assert.equal(request.authorization, 'Bearer secret', request.url);
 });
 
-test("a token → every GitHub API request of an organization's scan carries it", async () => {
+test("a token → every GitHub API request of an organization's scan carries it, the files through the tree, not code search", async () => {
   const page = openPage('', ORGANIZATION);
   page.token('secret');
   page.scan('JetBrains');
   await page.until(() => page.badges().length === 2);
   assert.deepEqual(page.badges(), ['1', '1']);
   assert.ok(api(page).some((request) => request.url.startsWith('https://api.github.com/orgs/JetBrains/repos')));
-  assert.ok(api(page).some((request) => request.url.startsWith('https://api.github.com/search/code')));
+  assert.ok(api(page).some((request) => request.url.includes('/git/trees/')));
+  assert.ok(!api(page).some((request) => request.url.startsWith('https://api.github.com/search/code')));
   for (const request of api(page)) assert.equal(request.authorization, 'Bearer secret', request.url);
 });
 
