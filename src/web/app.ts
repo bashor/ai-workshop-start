@@ -60,10 +60,10 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
   }
 
   /** `owner/repo`, or `owner` for an organization; undefined, with a message, when the text is neither. */
-  function parse(text: string, { organizations = true } = {}): State | undefined {
-    const name = parseRepository(text);
+  function parse(text: string, only?: 'repo' | 'org'): State | undefined {
+    const name = only === 'org' ? undefined : parseRepository(text);
     if (name) return { repo: `${name.owner}/${name.repo}` };
-    const org = organizations ? parseOrganization(text) : undefined;
+    const org = only === 'repo' ? undefined : parseOrganization(text);
     if (org) return { org: org.owner };
     status.textContent = `Not a GitHub repository or organization: ${text.trim()}. Type owner/repo, owner or a GitHub URL.`;
     return undefined;
@@ -74,18 +74,22 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
     input.value = state.repo ?? state.org ?? '';
     if (state.repo) {
       if (rescan || !shown || !('repo' in shown) || shown.repo !== state.repo) {
-        const repo = parse(state.repo, { organizations: false })?.repo;
+        const repo = parse(state.repo, 'repo')?.repo;
         const scanned = organization?.repositories.find((repository) => repository.id === repo)?.result;
-        if (repo && scanned && !rescan) showRepository(repo, scanned);
-        else if (repo) void load(repo);
+        if (repo && scanned && !rescan) {
+          begin();
+          showRepository(repo, scanned);
+        } else if (repo) void load(repo);
       } else if (shown.result) {
         select(wanted);
       }
     } else if (state.org) {
       if (rescan || !shown || !('org' in shown) || shown.org !== state.org) {
-        const org = parse(state.org)?.org;
-        if (org && organization?.organization === org && !rescan) showOrganization(organization);
-        else if (org) void loadOrganization(org);
+        const org = parse(state.org, 'org')?.org;
+        if (org && organization?.organization === org && !rescan) {
+          begin();
+          showOrganization(organization);
+        } else if (org) void loadOrganization(org);
       }
     } else {
       begin();
@@ -115,15 +119,20 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
     const controller = new AbortController();
     await scanning(org, { org }, async (current) => {
       running = controller;
-      const result = await scanOrganization(org, {
-        fetch,
-        suggestToken: false,
-        signal: controller.signal,
-        progress: (done, total) => {
-          if (current()) status.textContent = `Scanning ${org}… ${done} of ${total} ${total === 1 ? 'repository' : 'repositories'}`;
-        },
-      });
-      return () => showOrganization(result);
+      try {
+        const result = await scanOrganization(org, {
+          fetch,
+          suggestToken: false,
+          signal: controller.signal,
+          progress: (done, total) => {
+            if (current()) status.textContent = `Scanning ${org}… ${done} of ${total} ${total === 1 ? 'repository' : 'repositories'}`;
+          },
+        });
+        return () => showOrganization(result);
+      } finally {
+        // After an unexpected error, the other repositories would go on.
+        controller.abort();
+      }
     });
   }
 
@@ -152,7 +161,6 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
   }
 
   function showRepository(repo: string, result: ScanResult) {
-    if (!shown || !('repo' in shown) || shown.repo !== repo || shown.result) begin();
     shown = { repo, result };
     status.textContent = '';
     showResult(result);
@@ -161,7 +169,6 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
 
   /** `owner · N repositories`, the warnings, then each repository with the number of its skills. */
   function showOrganization(result: OrganizationResult) {
-    if (!shown || !('org' in shown) || shown.org !== result.organization || shown.result) begin();
     organization = result;
     shown = { org: result.organization, result };
     status.textContent = '';
