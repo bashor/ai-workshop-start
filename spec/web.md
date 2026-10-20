@@ -37,3 +37,6 @@ Core: fetch → find → parse, the same as the CLI's. Web UI: a *thin client*.
 - `npm run build` → static files, for any static host, such as GitHub Pages
 - `npm run dev` → the page on a local server, during development
 - Tests: the page in *jsdom*, GitHub answering from recordings
+- `README.md`: a **Web UI** section, how to work with the page
+  - *Run locally*: `npm ci`, `npm run dev`, the address, `PORT` for another port; a change to the sources → reload the page
+  - *Prepare the distribution*: `npm run build`, what lands in `dist/`, how to preview it, where to host it
