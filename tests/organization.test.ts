@@ -50,12 +50,14 @@ test('owner → every repository scanned, with a badge of its skills, most first
   assert.match(page.$('#skill')!.textContent!, /pick a repository/i);
 });
 
-test("an organization's URL is scanned as the organization", async () => {
-  const page = openPage('', ACME);
-  page.scan('https://www.github.com/Acme/');
-  await page.until(() => page.names().length > 0);
-  assert.equal(summary(page), 'Acme · 4 repositories');
-  assert.equal(page.param('org'), 'Acme');
+test("an organization's URL is scanned as the organization, with or without the scheme", async () => {
+  for (const url of ['https://www.github.com/Acme/', 'github.com/Acme', 'www.github.com/Acme/']) {
+    const page = openPage('', ACME);
+    page.scan(url);
+    await page.until(() => page.names().length > 0 || /not found/.test(page.$('#status')!.textContent!), url);
+    assert.equal(summary(page), 'Acme · 4 repositories', url);
+    assert.equal(page.param('org'), 'Acme', url);
+  }
 });
 
 test('opening ?org= scans at once', async () => {
