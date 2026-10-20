@@ -1,3 +1,4 @@
+import { AtlasError } from './errors.ts';
 import { findSkills, moduleOf, type SkillFile } from './find.ts';
 import { sortSkills, type Repository, type Skill } from './model.ts';
 import { parseSkill } from './parse.ts';
@@ -11,6 +12,8 @@ export type Source = {
   warnings: string[];
   /** The file's bytes, or undefined if it is not there. */
   read(path: string): Promise<Uint8Array | undefined>;
+  /** When the directory last changed, up to the scanned commit, as an ISO date; undefined if never. */
+  updated(directory: string): Promise<string | undefined>;
 };
 
 export type ScanResult = { repository: Repository; skills: Skill[]; warnings: string[] };
@@ -20,11 +23,38 @@ export async function scan(source: Source): Promise<ScanResult> {
   const files = findSkills(source.paths);
   // The files are read at the same time: on GitHub, each one is a request.
   const results = await Promise.all(files.map((file) => readSkill(source, file)));
+  const skills = sortSkills(mergeCopies(results.flatMap((result) => (result.skill ? [result.skill] : []))));
   return {
     repository: source.repository,
-    skills: sortSkills(mergeCopies(results.flatMap((result) => (result.skill ? [result.skill] : [])))),
-    warnings: [...source.warnings, ...results.flatMap((result) => (result.warning ? [result.warning] : []))],
+    skills,
+    warnings: [
+      ...source.warnings,
+      ...results.flatMap((result) => (result.warning ? [result.warning] : [])),
+      ...(await addDates(source, skills)),
+    ],
   };
+}
+
+/**
+ * Each skill's last update, at the same time; once the copies are merged, so a copy costs no request.
+ * A date that cannot be had is not fatal: the skill goes without it, with one warning per reason.
+ */
+async function addDates(source: Source, skills: Skill[]): Promise<string[]> {
+  const failures = await Promise.all(skills.map(async (skill) => {
+    try {
+      const updated = await source.updated(skill.path.split('/').slice(0, -1).join('/'));
+      const date = updated === undefined ? undefined : new Date(updated);
+      if (date && !Number.isNaN(date.getTime())) skill.updated = date.toISOString();
+      return undefined;
+    } catch (error) {
+      if (!(error instanceof AtlasError)) throw error;
+      return error.message;
+    }
+  }));
+  // In the order of the skills, not of the answers.
+  const counts = new Map<string, number>();
+  for (const message of failures) if (message !== undefined) counts.set(message, (counts.get(message) ?? 0) + 1);
+  return [...counts].map(([message, count]) => `last updated not known for ${count} ${count === 1 ? 'skill' : 'skills'}: ${message}`);
 }
 
 type Read = { skill?: Skill; warning?: string };

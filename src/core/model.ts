@@ -24,6 +24,8 @@ export type Skill = {
   copies: string[];
   /** The Markdown after the front matter. */
   body: string;
+  /** When its directory last changed, up to the scanned commit, in UTC: `2026-10-14T09:30:00.000Z`; unknown if missing. */
+  updated?: string;
 };
 
 /**
@@ -39,6 +41,11 @@ export function skillLink(repository: Repository, skill: Skill): string {
 export function firstSentence(text: string): string {
   const line = text.replace(/\s+/g, ' ').trim();
   return /^.*?[.!?](?=\s|$)/.exec(line)?.[0] ?? line;
+}
+
+/** A last updated time as a list shows it: the day, in UTC. */
+export function formatDate(updated: string): string {
+  return updated.slice(0, 10);
 }
 
 /** By name, then by path: the same order everywhere, whatever the locale. */

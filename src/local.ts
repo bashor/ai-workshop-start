@@ -1,3 +1,4 @@
+import { execFile } from 'node:child_process';
 import { readdir, readFile } from 'node:fs/promises';
 import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -22,7 +23,17 @@ export async function openDirectory(input: string): Promise<Source> {
     paths,
     warnings: [],
     read: (path) => readFile(join(root, path)).then((bytes) => new Uint8Array(bytes), () => undefined),
+    updated: (directory) => lastCommitted(root, directory),
   };
+}
+
+/** The committer's date of the last commit that changed the directory; undefined if not in git, or never committed. */
+function lastCommitted(root: string, directory: string): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    execFile('git', ['log', '-1', '--format=%cI', '--', directory], { cwd: root }, (error, stdout) => {
+      resolve(error ? undefined : stdout.trim() || undefined);
+    });
+  });
 }
 
 /** Every regular file under the directory, as a path relative to the root. */

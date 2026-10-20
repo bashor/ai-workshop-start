@@ -88,7 +88,9 @@ async function open(github: Client, info: RepositoryInfo, options: GitHubOptions
     throw error;
   });
   // No commit yet, so no files and no skills.
-  if (!commit) return { repository: { ...repository, commit: '' }, paths: [], warnings: [], read: async () => undefined };
+  if (!commit) {
+    return { repository: { ...repository, commit: '' }, paths: [], warnings: [], read: async () => undefined, updated: async () => undefined };
+  }
   const { sha } = commit;
   const warnings: string[] = [];
   const paths = options.token && (options.search ?? true)
@@ -99,7 +101,16 @@ async function open(github: Client, info: RepositoryInfo, options: GitHubOptions
     paths,
     warnings,
     read: (path) => github.raw(`${RAW}/${id}/${sha}/${encodePath(path)}`),
+    updated: (directory) => lastUpdated(github, id, sha, directory),
   };
+}
+
+type Commit = { commit: { committer: { date: string } | null } };
+
+/** The committer's date of the last commit that changed the directory, up to `sha`. */
+async function lastUpdated(github: Client, id: string, sha: string, directory: string): Promise<string | undefined> {
+  const commits = await github.json<Commit[]>(`${API}/repos/${id}/commits?sha=${sha}&path=${encodePath(directory)}&per_page=1`);
+  return commits[0]?.commit.committer?.date;
 }
 
 /** Code search looks at the whole default branch, 100 results a page. */
