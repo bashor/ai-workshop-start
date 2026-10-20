@@ -1,6 +1,7 @@
 // The last updated date in spec/web.md: under each skill on the left, next to the link on the
 // right, on the real page in jsdom, with GitHub answering from recordings.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import type { Recording } from '../src/core/replay.ts';
 import { COMMIT, openPage, record, recordOrganization } from './web-helpers.ts';
@@ -44,6 +45,23 @@ test('right panel: `Updated <date>` next to the link, the exact time on hover', 
   page.pick(2);
   assert.equal(page.$('#skill h1')!.textContent, 'never');
   assert.equal(page.$('#skill .updated'), null);
+});
+
+test('the date in italics, told apart from the description, in both panels', async () => {
+  const page = openPage('', TOOLS);
+  // jsdom loads no stylesheet by itself: web/style.css, as the page links it.
+  const style = page.document.createElement('style');
+  style.textContent = readFileSync(new URL('../web/style.css', import.meta.url), 'utf8');
+  page.document.head.append(style);
+  const fontStyle = (element: Element) => page.window.getComputedStyle(element).fontStyle;
+  page.scan('Acme/tools');
+  await page.until(() => page.names().length > 0);
+  const build = page.$('#skills li button')!;
+  assert.equal(fontStyle(build.querySelector('.updated')!), 'italic');
+  assert.equal(fontStyle(build.querySelector('.description')!), 'normal');
+  page.pick(0);
+  assert.equal(fontStyle(page.$('#skill > header .updated')!), 'italic');
+  assert.equal(fontStyle(page.$('#skill > header .description')!), 'normal');
 });
 
 test('the filter: the dates stay, not matched', async () => {
