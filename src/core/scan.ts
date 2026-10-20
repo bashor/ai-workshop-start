@@ -27,16 +27,16 @@ export async function scan(source: Source): Promise<ScanResult> {
   };
 }
 
-type Read = { skill?: Skill & { body: string }; warning?: string };
+type Read = { skill?: Skill; warning?: string };
 
 /**
  * One skill for several agents: the same directory name in the roots of the same module, with
  * the same name, description and body. Listed once, at its first path, the others its copies.
  */
-function mergeCopies(skills: (Skill & { body: string })[]): Skill[] {
+function mergeCopies(skills: Skill[]): Skill[] {
   const merged = new Map<string, Skill>();
-  for (const { body, ...skill } of skills) {
-    const key = JSON.stringify([moduleOf(skill.path), skill.path.split('/').at(-2), skill.name, skill.description, body]);
+  for (const skill of skills) {
+    const key = JSON.stringify([moduleOf(skill.path), skill.path.split('/').at(-2), skill.name, skill.description, skill.body]);
     const first = merged.get(key);
     if (first) first.copies.push(skill.path);
     else merged.set(key, { ...skill, copies: [] });

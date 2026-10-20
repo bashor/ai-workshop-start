@@ -15,5 +15,9 @@ build-tools-bump-gradle-api — Bumps the Gradle API version that Kotlin Gradle 
 
 Set `GITHUB_TOKEN` for a higher GitHub rate limit. `npm test` runs the tests.
 
+The same in the browser: a search page, a repository's skills on the left, the selected `SKILL.md` on the
+right. `npm run dev` serves it at http://127.0.0.1:8000/; `npm run build` puts it in `dist/`, static
+files for any static host, such as GitHub Pages.
+
 - [spec/](spec/): what it does. [AGENTS.md](AGENTS.md): the definition of done.
 - [fixture/](fixture/README.md): a small repository for the tests.

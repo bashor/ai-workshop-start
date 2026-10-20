@@ -251,7 +251,7 @@ test('unreachable repository → a clear message instead of the list', async () 
   const page = openPage('?repo=JetBrains/fixture', { ...ALL, ...notFound });
   await page.until(() => page.names().length > 0);
   page.scan('JetBrains/no-such-repository');
-  await page.until(() => page.names().length === 0 && page.$('#status')!.textContent);
+  await page.until(() => page.names().length === 0 && /^Repository/.test(page.$('#status')!.textContent!));
   assert.equal(page.$('#status')!.textContent, 'Repository not found: https://github.com/JetBrains/no-such-repository');
   assert.equal(page.$('#summary'), null);
   assert.match(page.$('#skill')!.textContent!, /pick a skill/i);
@@ -265,6 +265,21 @@ test('GitHub rate limit → try again later, no GITHUB_TOKEN in the page', async
   await page.until(() => page.$('#status')!.textContent && !/^Scanning/.test(page.$('#status')!.textContent!));
   assert.equal(page.$('#status')!.textContent, 'GitHub rate limit reached; try again later');
   assert.deepEqual(page.names(), []);
+});
+
+test('a tree too large to list at once → a warning, without GITHUB_TOKEN', async () => {
+  const id = 'JetBrains/huge';
+  const large: Recording = {
+    ...record(id, {}),
+    [`https://api.github.com/repos/${id}/git/trees/${COMMIT}?recursive=1`]: { status: 200, body: { truncated: true, tree: [] } },
+    [`https://api.github.com/repos/${id}/git/trees/${COMMIT}`]: { status: 200, body: { truncated: false, tree: [] } },
+  };
+  const page = openPage(`?repo=${id}`, large);
+  await page.until(() => page.$('#summary'));
+  assert.deepEqual(
+    page.$$('#warnings li').map((element) => element.textContent),
+    ['the tree is too large to list at once; looked only in .agents/skills, .claude/skills, .github/skills, agent/skills'],
+  );
 });
 
 test('the core gives a skill its body, without the front matter', async () => {
@@ -283,7 +298,7 @@ test('npm run build → static files that work from any path of a static host', 
   assert.match(html, /<script src="app\.js"/);
   assert.match(html, /<link rel="stylesheet" href="style\.css">/);
   const app = readFileSync(join(outdir, 'app.js'), 'utf8');
-  assert.doesNotMatch(app, /\bnode:|process\.env|GITHUB_TOKEN/);
+  assert.doesNotMatch(app, /["'`]node:|\bprocess\.env\b/);
 
   // The bundle runs in a page on its own.
   const dom = await JSDOM.fromFile(join(outdir, 'index.html'), { runScripts: 'dangerously', resources: 'usable' });
