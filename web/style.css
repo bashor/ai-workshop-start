@@ -60,6 +60,8 @@ main { flex: 1; display: flex; min-height: 0; }
 #skill > header .description { margin: 0 0 0.5rem; }
 #skill .source { font-size: 0.85rem; color: var(--accent); }
 #skill > header .updated { margin-left: 0.75rem; font-size: 0.85rem; color: var(--muted); }
+/* The date in italics: told apart from the description above it. */
+#list .updated, #skill > header .updated { font-style: italic; }
 .markdown img { max-width: 100%; }
 .markdown pre { overflow-x: auto; padding: 0.75rem; border-radius: 6px; background: color-mix(in srgb, currentColor 6%, transparent); }
 .markdown code { font-size: 0.9em; }
