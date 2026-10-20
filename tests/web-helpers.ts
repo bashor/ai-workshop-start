@@ -42,6 +42,20 @@ export function record(id: string, files: Record<string, File>): Recording {
   return recording;
 }
 
+/** What GitHub lists, without a token, for an organization `org` with these repositories, 100 a page. */
+export function recordOrganization(org: string, names: string[]): Recording {
+  const recording: Recording = {};
+  // The last page has fewer than 100: an empty one when they divide evenly.
+  for (let page = 1, repositories: string[] = []; page === 1 || repositories.length === 100; page++) {
+    repositories = names.slice((page - 1) * 100, page * 100);
+    recording[`https://api.github.com/orgs/${org}/repos?per_page=100&page=${page}`] = {
+      status: 200,
+      body: repositories.map((name) => ({ name, full_name: `${org}/${name}`, default_branch: 'main' })),
+    };
+  }
+  return recording;
+}
+
 /** ./fixture, as GitHub would answer it for `id`. */
 export function recordFixture(id: string): Recording {
   const files: Record<string, File> = {};
@@ -88,7 +102,9 @@ export function openPage(query: string, recording: Recording, options: { fetch?:
     },
     /** The skill names in the left panel. */
     names: () => $$('#skills li .name').map((element) => element.textContent),
-    /** Clicks the `index`-th skill in the left panel. */
+    /** The badges in the left panel: the number of each repository's skills. */
+    badges: () => $$('#skills li .badge').map((element) => element.textContent),
+    /** Clicks the `index`-th skill, or repository, in the left panel. */
     pick: (index: number) => $$('#skills li button')[index].click(),
     /** Waits until `check` is true. */
     async until(check: () => unknown, what = 'the page') {

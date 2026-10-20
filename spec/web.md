@@ -21,8 +21,9 @@ A text field **at the top**: `owner/repo`, or a GitHub URL as the CLI takes it
 Every repository of the organization scanned, **one after another**, a few at a time
 - **Left panel**: `owner · N repositories` on top, then the scanned repositories
   - Each: its name and a **badge**, the number of its skills
-  - Sorted by the **number of skills**, most first, then by name
+  - Sorted by the **number of skills**, most first, then by name; the failed ones last
   - A repository that failed → its message instead of the badge; the others go on
+  - An empty repository → 0 skills
   - The rate limit → the rest *not scanned*, a warning above the list
   - No repositories → `No repositories found`
 - Click a repository → its skills, as for `owner/repo`; *no new request*, the scan is reused
