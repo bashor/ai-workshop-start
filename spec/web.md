@@ -26,6 +26,7 @@ Shareable: the page URL holds the state
 - No skills → `No skills found`
 - Warnings → shown above the list, the scan goes on
 - Unreachable repository, GitHub rate limit → a clear message instead of the list
+  - The rate limit: *try again later*; no `GITHUB_TOKEN` in the page
 ## Safety
 `SKILL.md` is *untrusted*: rendered **without** raw HTML or scripts
 ## Architecture
@@ -35,3 +36,4 @@ Core: fetch → find → parse, the same as the CLI's. Web UI: a *thin client*.
 ## Build and run
 - `npm run build` → static files, for any static host, such as GitHub Pages
 - `npm run dev` → the page on a local server, during development
+- Tests: the page in *jsdom*, GitHub answering from recordings
