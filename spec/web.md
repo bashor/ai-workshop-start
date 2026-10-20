@@ -31,12 +31,14 @@ An **Add token** button next to the text field: a GitHub token, as the CLI's `--
   - Each skill a **card**: its name, with its *folder* next to it as a tag
     - The folder: the agent's root it is in, `.claude/skills`, or `plugins/x/.claude/skills` in a module; the full path on hover
     - The description: at most **2 lines**, then `…`; the whole first sentence on hover
+    - `updated <YYYY-MM-DD>` under the description: the skill's *last updated* date; no date → nothing
   - `also in` for copies, then a **chip** for each copy: its folder; its full path on hover
     - The text: the chips separated by `, `, not shown: `also in .agents/skills, .github/skills`
   - The selected skill: an **accent bar** on its left
 - **Right panel**: the selected skill's `SKILL.md`, **rendered Markdown**
   - Its name and description on top, from the front matter; the front matter *not shown* as text
   - The link to the file, pinned to the *scanned commit*
+  - `Updated <YYYY-MM-DD>` next to the link; the exact time on hover
   - Relative links and images: from the skill's directory, at the scanned commit
   - Nothing selected → a hint to pick a skill
 - Click a skill → it is selected, the right panel shows it
@@ -61,7 +63,7 @@ Every repository of the organization scanned, **one after another**, a few at a 
   - An empty repository → 0 skills
   - The rate limit → the rest *not scanned*, a warning above the list
   - No repositories → `No repositories found`
-- Click a repository → its skills, as for `owner/repo`; *no new request*, the scan is reused
+- Click a repository → its skills, as for `owner/repo`, with the dates; *no new request*, the scan is reused
 - Scanning: the progress, `Scanning owner… 3 of 20 repositories · 12 skills`, the skills found so far
 - **As they come**, while scanning: the list shown before the scan is over
   - The repositories listed as soon as GitHub lists them, each page of them; `owner · N repositories`, the ones listed so far
@@ -88,7 +90,7 @@ Shareable: the page URL holds the state
 ## Architecture
 Core: fetch → find → parse, the same as the CLI's. Web UI: a *thin client*.
 - GitHub API from the browser, **no token** unless one is saved with Add token
-- The core gives a skill's body, for the right panel
+- The core gives a skill's body and its last updated date, for the panels
 - The core scans an organization: its repositories from the GitHub API, each one scanned as above
 ## Build and run
 - `npm run build` → static files, for any static host, such as GitHub Pages
