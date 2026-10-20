@@ -24,6 +24,10 @@ When the skill was last changed: the date of the **last commit** that changed it
 - Copies: the date of the path listed
 - GitHub: the commits of the directory, *one request per skill listed*, none for its copies
   - The request fails, the rate limit too → the skill listed *without* the date, one warning per reason: `last updated not known for N skills: <message>`; the scan goes on
+  - A **reserve** for the scans after it: no date request once GitHub's API has *20 requests or fewer* left, as its `X-RateLimit-Remaining` says, counting the requests sent since
+    - The skills without a date → the same warning: `GitHub rate limit nearly reached; set GITHUB_TOKEN`, or `try again later` with a token or in the page
+    - An organization's repositories: one count for all of them
+    - Code search's own limit not counted
 - A local directory: the last commit from **git**, uncommitted changes not counted
   - Not in git, or never committed → no date, no warning
 ## Architecture
