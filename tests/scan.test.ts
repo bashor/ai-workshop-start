@@ -34,6 +34,7 @@ test('scan prints the repository, then each skill with its first sentence and pi
       'JetBrains/example · 1 skill',
       'commits — Write commit messages the way this repository does.',
       `  https://github.com/JetBrains/example/blob/${EXAMPLE_COMMIT}/.claude/skills/commits/SKILL.md`,
+      '  updated 2026-10-14',
     ].join('\n'),
   );
 });
@@ -41,8 +42,11 @@ test('scan prints the repository, then each skill with its first sentence and pi
 test('./fixture: every real skill, sorted by name, linked to its file, with a warning for the malformed one', () => {
   const root = pathToFileURL(FIXTURE).href;
   assert.equal(fixture.code, 0);
+  // The dates come from git, whatever this checkout's history is: in tests/updated.test.ts.
+  const lines = fixture.stdout.split('\n');
+  assert.equal(lines.filter((line) => /^  updated \d{4}-\d{2}-\d{2}$/.test(line)).length, 5);
   assert.equal(
-    fixture.stdout,
+    lines.filter((line) => !line.startsWith('  updated ')).join('\n'),
     [
       'fixture · 5 skills',
       // The same in two agents' roots: once, with its copy.

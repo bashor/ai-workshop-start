@@ -7,7 +7,7 @@ import { run } from '../src/commands.ts';
 import type { Fetch } from '../src/core/github.ts';
 import { replay, type Recording } from '../src/core/replay.ts';
 import { nodeContext } from '../src/node.ts';
-import { atlas, CLI, EXAMPLE_COMMIT, FIXTURE } from './helpers.ts';
+import { atlas, CLI, EXAMPLE_COMMIT, EXAMPLE_UPDATED, FIXTURE, lastCommit } from './helpers.ts';
 
 const SKILL = '.claude/skills/commits/SKILL.md';
 
@@ -27,12 +27,14 @@ const EXAMPLE: Recording = {
     status: 200,
     body: '---\nname: commits\ndescription: Write commit messages the way this repository does. Use for every commit.\n---\n# Commits\n',
   },
+  ...lastCommit('JetBrains/example', EXAMPLE_COMMIT, '.claude/skills/commits', EXAMPLE_UPDATED),
 };
 
 const OUTPUT = [
   'JetBrains/example · 1 skill',
   'commits — Write commit messages the way this repository does.',
   `  https://github.com/JetBrains/example/blob/${EXAMPLE_COMMIT}/${SKILL}`,
+  '  updated 2026-10-14',
 ].join('\n');
 
 /** `skill-atlas <args>` with the given environment; every request with its Authorization header. */
@@ -68,6 +70,8 @@ for (const [form, args] of [
         'https://api.github.com/repos/JetBrains/example',
         'https://api.github.com/repos/JetBrains/example/commits/main',
         'https://api.github.com/search/code?q=filename:SKILL.md+repo:JetBrains/example&per_page=100&page=1',
+        // The skill's last update.
+        `https://api.github.com/repos/JetBrains/example/commits?sha=${EXAMPLE_COMMIT}&path=.claude/skills/commits&per_page=1`,
       ],
     );
     for (const request of scanned.api) assert.equal(request.authorization, 'Bearer secret', request.url);
