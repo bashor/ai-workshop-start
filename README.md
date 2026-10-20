@@ -15,9 +15,37 @@ build-tools-bump-gradle-api — Bumps the Gradle API version that Kotlin Gradle 
 
 Set `GITHUB_TOKEN` for a higher GitHub rate limit. `npm test` runs the tests.
 
+## Web UI
+
 The same in the browser: a search page, a repository's skills on the left, the selected `SKILL.md` on the
-right. `npm run dev` serves it at http://127.0.0.1:8000/; `npm run build` puts it in `dist/`, static
-files for any static host, such as GitHub Pages.
+right. Type `owner/repo` or a GitHub URL, press Enter or **Scan**, click a skill. The page URL holds the
+repository and the skill, so it can be shared. The page calls the GitHub API with no token.
+
+### Run locally
+
+```console
+$ npm ci
+$ npm run dev
+Skill Atlas: http://127.0.0.1:8000/
+```
+
+Open http://127.0.0.1:8000/. `app.js` is rebuilt whenever a source changes: reload the page to see it.
+`PORT=8080 npm run dev` serves on another port. Ctrl+C stops the server.
+
+### Prepare the distribution
+
+```console
+$ npm ci
+$ npm run build
+dist/: index.html, app.js, style.css
+```
+
+`dist/` holds the whole page: `index.html`, `app.js` (minified, with `app.js.map`) and `style.css`. The
+paths are relative, so upload `dist/` to any static host, at its root or under a path, such as GitHub
+Pages at `https://<owner>.github.io/<repo>/`. To check the build first, serve `dist/` locally with any
+static server, e.g. `python3 -m http.server -d dist 8080`, and open http://127.0.0.1:8080/.
+
+## More
 
 - [spec/](spec/): what it does. [AGENTS.md](AGENTS.md): the definition of done.
 - [fixture/](fixture/README.md): a small repository for the tests.
