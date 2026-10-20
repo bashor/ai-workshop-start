@@ -23,6 +23,11 @@ export type OrganizationResult = {
 export type OrganizationOptions = GitHubOptions & {
   /** After each repository: how many are scanned, of how many. */
   progress?(scanned: number, total: number): void;
+  /**
+   * As they come: the repositories listed so far, after each page of them; then after each repository scanned.
+   * The ones not scanned yet have neither a result nor an error.
+   */
+  update?(result: OrganizationResult): void;
   /** Once aborted, no other repository is started. */
   signal?: AbortSignal;
 };
@@ -37,12 +42,15 @@ const AT_ONCE = 4;
 export async function scanOrganization(input: string, options: OrganizationOptions): Promise<OrganizationResult> {
   const name = parseOrganization(input);
   if (!name) throw new AtlasError(`Not a GitHub organization: ${input}`);
-  const listed = await listRepositories(name.owner, options);
-  const repositories: RepositoryScan[] = listed.map((info) => ({
-    id: info.full_name,
-    name: info.name,
-    url: `https://github.com/${info.full_name}`,
-  }));
+  const repositories: RepositoryScan[] = [];
+  const update = () =>
+    options.update?.({ organization: name.owner, url: `https://github.com/${name.owner}`, repositories: sortRepositories(repositories), warnings: [] });
+  const listed = await listRepositories(name.owner, options, (page) => {
+    for (const info of page.slice(repositories.length)) {
+      repositories.push({ id: info.full_name, name: info.name, url: `https://github.com/${info.full_name}` });
+    }
+    update();
+  });
   let next = 0;
   let scanned = 0;
   let limited: RateLimitError | undefined;
@@ -59,7 +67,9 @@ export async function scanOrganization(input: string, options: OrganizationOptio
         else if (error instanceof AtlasError) repositories[index].error = error.message;
         else throw error;
       }
-      options.progress?.(++scanned, listed.length);
+      ++scanned;
+      update();
+      options.progress?.(scanned, listed.length);
     }
   }
   await Promise.all(Array.from({ length: AT_ONCE }, worker));
@@ -74,9 +84,9 @@ export async function scanOrganization(input: string, options: OrganizationOptio
   };
 }
 
-/** The most skills first, then by name; the failed ones last, by name. */
+/** The most skills first, then by name; the ones not scanned yet next, the failed ones last, by name. */
 function sortRepositories(repositories: RepositoryScan[]): RepositoryScan[] {
   const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
-  const skills = (repository: RepositoryScan) => repository.result?.skills.length ?? -1;
+  const skills = (repository: RepositoryScan) => repository.result?.skills.length ?? (repository.error ? -1 : -0.5);
   return [...repositories].sort((a, b) => skills(b) - skills(a) || compare(a.name, b.name));
 }

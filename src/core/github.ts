@@ -60,8 +60,12 @@ export function openGitHubRepository(info: RepositoryInfo, options: GitHubOption
   return open(client(options), info, options);
 }
 
-/** An organization's repositories, every page of them. */
-export async function listRepositories(owner: string, options: GitHubOptions): Promise<RepositoryInfo[]> {
+/** An organization's repositories, every page of them; `listed` after each page, with the ones so far. */
+export async function listRepositories(
+  owner: string,
+  options: GitHubOptions,
+  listed?: (repositories: RepositoryInfo[]) => void,
+): Promise<RepositoryInfo[]> {
   const github = client(options);
   const repositories: RepositoryInfo[] = [];
   for (let page = 1; ; page++) {
@@ -70,6 +74,7 @@ export async function listRepositories(owner: string, options: GitHubOptions): P
       `Organization not found: https://github.com/${owner}`,
     );
     repositories.push(...answer);
+    listed?.(repositories);
     if (answer.length < 100) return repositories;
   }
 }
