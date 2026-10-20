@@ -13,7 +13,8 @@ build-tools-bump-gradle-api — Bumps the Gradle API version that Kotlin Gradle 
 …
 ```
 
-Set `GITHUB_TOKEN` for a higher GitHub rate limit. `npm test` runs the tests.
+Set `GITHUB_TOKEN`, or pass `--token <token>`, for a higher GitHub rate limit: `./skill-atlas scan --token "$TOKEN" <URL>`. The
+option is used instead of `GITHUB_TOKEN`. `npm test` runs the tests.
 
 ## Web UI
 
@@ -21,7 +22,9 @@ The same in the browser: a search page, a repository's skills on the left, the s
 right. Type `owner/repo` or a GitHub URL, press Enter or **Scan**, click a skill. The page URL holds the
 repository and the skill, so it can be shared. Or type an organization, `owner` or
 `https://github.com/owner`: its repositories are listed, each with the number of its skills; click one to
-see them. The page calls the GitHub API with no token.
+see them. The page calls the GitHub API with no token, unless one is typed into the optional
+token field next to it: like `--token`, for a higher rate limit. The token is never put in the page URL
+or stored.
 
 ### Run locally
 

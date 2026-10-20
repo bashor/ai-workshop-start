@@ -5,8 +5,8 @@ import { firstSentence, skillLink, type Repository, type Skill } from './core/mo
 import { scan, type Source } from './core/scan.ts';
 
 export type Context = {
-  /** Opens what the user asked to scan. */
-  open(input: string): Promise<Source>;
+  /** Opens what the user asked to scan; `token`, from --token, for GitHub. */
+  open(input: string, options?: { token?: string }): Promise<Source>;
   print(text: string): void;
   /** Errors and warnings. */
   error(text: string): void;
@@ -14,8 +14,12 @@ export type Context = {
 
 const usage = `Usage: skill-atlas <command>
 
-  scan <GitHub URL | directory>   find every SKILL.md in a repository and print it
-  help                            show this help`;
+  scan [--token <token>] <GitHub URL | directory>
+                 find every SKILL.md in a repository and print it;
+                 --token: the GitHub token, instead of GITHUB_TOKEN
+  help           show this help`;
+
+const scanUsage = 'Usage: skill-atlas scan [--token <token>] <GitHub URL | directory>';
 
 /** Runs one command; returns its exit code. */
 export async function run(args: string[], context: Context): Promise<number> {
@@ -33,10 +37,30 @@ export async function run(args: string[], context: Context): Promise<number> {
 }
 
 async function scanCommand(args: string[], context: Context) {
-  if (args.length !== 1) throw new AtlasError('Usage: skill-atlas scan <GitHub URL | directory>');
-  const result = await scan(await context.open(args[0]));
+  const { inputs, token } = scanArguments(args);
+  if (inputs.length !== 1) throw new AtlasError(scanUsage);
+  const result = await scan(await context.open(inputs[0], { token }));
   printRepository(result.repository, result.skills, context);
   for (const warning of result.warnings) context.error(`warning: ${warning}`);
+}
+
+/** `--token <token>` or `--token=<token>`, once, anywhere; the rest are inputs. */
+function scanArguments(args: string[]): { inputs: string[]; token?: string } {
+  const inputs: string[] = [];
+  let token: string | undefined;
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    let value: string | undefined;
+    if (arg === '--token') value = args[++i];
+    else if (arg.startsWith('--token=')) value = arg.slice('--token='.length);
+    else {
+      inputs.push(arg);
+      continue;
+    }
+    if (!value || token !== undefined) throw new AtlasError(scanUsage);
+    token = value;
+  }
+  return { inputs, token };
 }
 
 /** `<owner>/<repo> · N skills`, then each skill's name, first sentence and link. */

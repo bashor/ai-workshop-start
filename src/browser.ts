@@ -1,5 +1,5 @@
 // The browser entry: the same commands, printed into the page, over live GitHub without a
-// token. No Node APIs here.
+// token unless one is typed with --token. No Node APIs here.
 import { run } from './commands.ts';
 import { openGitHub, type Fetch } from './core/github.ts';
 
@@ -10,7 +10,8 @@ export type BrowserOptions = {
 
 export function createBrowserBackend(options: BrowserOptions = {}) {
   const live = options.fetch ?? ((url, init) => fetch(url, init));
-  const open = (input: string) => openGitHub(input, { fetch: live });
+  const open = (input: string, { token }: { token?: string } = {}) =>
+    openGitHub(input, { fetch: live, token, tokenSource: 'the token given with --token' });
 
   return {
     /** Runs a typed command line, such as `skill-atlas scan <URL>`, and returns what it printed. */
