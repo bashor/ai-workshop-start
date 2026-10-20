@@ -287,3 +287,30 @@ test('as they come: each page of repositories listed before the next one', async
   assert.equal(summary(page), 'Acme · 101 repositories');
   assert.equal(page.badges().length, 101);
 });
+
+test('as they come: an unexpected error → its message instead of the list; the repositories still scanning change nothing', async () => {
+  const recording: Recording = {
+    ...recordOrganization('Acme', ['a', 'bad', 'docs']),
+    ...record('Acme/a', { '.claude/skills/a/SKILL.md': SKILL('a') }),
+    ...record('Acme/bad', {}),
+    ...record('Acme/docs', { '.claude/skills/guide/SKILL.md': SKILL('guide') }),
+  };
+  // A tree with no files in it: not an AtlasError.
+  recording['https://api.github.com/repos/Acme/bad/git/trees/5ab6270ab772d113e8ad52ebfcaa0109c522ae00?recursive=1'] = {
+    status: 200,
+    body: { truncated: false },
+  };
+  // Acme/a answers only once released: still scanning when the error comes.
+  const { fetch, release } = holding(recording, 'Acme/a/');
+  const page = openPage('?org=Acme', recording, { fetch });
+  await page.until(() => /^Unexpected error/.test(page.$('#status')!.textContent!), 'the error');
+  assert.equal(page.$('#summary'), null);
+  assert.equal(page.$('#skills')!.getAttribute('aria-busy'), 'false');
+
+  release();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.ok(page.requests.some((url) => url.includes('Acme/a/git/trees')), 'a was scanned');
+  assert.match(page.$('#status')!.textContent!, /^Unexpected error/);
+  assert.equal(page.$('#summary'), null);
+  assert.equal(page.$$('#skills li').length, 0);
+});

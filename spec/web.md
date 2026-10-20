@@ -52,6 +52,7 @@ Every repository of the organization scanned, **one after another**, a few at a 
   - One not scanned yet → `…` instead of the badge; its badge as soon as it is scanned, its message if it failed
   - Sorted as above, the ones not scanned yet after the scanned ones, before the failed ones
   - Not clickable until the scan is over
+  - An unexpected error → its message instead of the list; the repositories still scanning change *nothing* when they finish
 - Not an organization → `Organization not found: https://github.com/owner`
 ## Page URL
 Shareable: the page URL holds the state
