@@ -16,6 +16,15 @@ A text field **at the top**: `owner/repo`, or a GitHub URL as the CLI takes it
   - Relative links and images: from the skill's directory, at the scanned commit
   - Nothing selected → a hint to pick a skill
 - Click a skill → it is selected, the right panel shows it
+## Filter
+A text field **on top of the list**, once a repository has skills
+- Filters *while typing*: the skills whose **name** or shown **description** contain the text, case-insensitive
+  - Leading and trailing spaces ignored; empty → every skill
+- `X of Y` next to it: X skills match, Y in total
+- The matched parts **highlighted** in the names and descriptions
+- Nothing matches → `No skills match`
+- A new scan clears it; the selected skill stays selected, even when filtered out
+- Not in the page URL
 ## Page URL
 Shareable: the page URL holds the state
 - `?repo=owner/repo` after a scan; opening such a URL scans **at once**
