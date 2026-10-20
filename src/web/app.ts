@@ -9,7 +9,7 @@ import { scan, type ScanResult } from '../core/scan.ts';
 import { renderMarkdown } from './markdown.ts';
 
 export type AppOptions = {
-  /** Live GitHub, without a token. */
+  /** Live GitHub; with the token field's token, if any. */
   fetch: Fetch;
 };
 
@@ -21,6 +21,7 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
   const { document, history } = window;
   const find = <T extends HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
   const input = find<HTMLInputElement>('#repo');
+  const tokenField = find<HTMLInputElement>('#token');
   const skills = find('#skills');
   const status = find('#status');
   const results = find('#results');
@@ -72,6 +73,12 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
     return undefined;
   }
 
+  /** The token field's token, read at each scan; never in the page URL, never stored. */
+  function github() {
+    const token = tokenField.value.trim() || undefined;
+    return { fetch, token, tokenSource: 'the token in the token field', suggestToken: false };
+  }
+
   function show(state: State, { rescan }: { rescan: boolean }) {
     wanted = state.skill;
     input.value = state.repo ?? state.org ?? '';
@@ -113,7 +120,7 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
 
   async function load(repo: string) {
     await scanning(repo, { repo }, async () => {
-      const result = await scan(await openGitHub(repo, { fetch, suggestToken: false }));
+      const result = await scan(await openGitHub(repo, github()));
       return () => showRepository(repo, result);
     });
   }
@@ -124,8 +131,7 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
       running = controller;
       try {
         const result = await scanOrganization(org, {
-          fetch,
-          suggestToken: false,
+          ...github(),
           signal: controller.signal,
           progress: (done, total) => {
             if (current()) status.textContent = `Scanning ${org}… ${done} of ${total} ${total === 1 ? 'repository' : 'repositories'}`;
