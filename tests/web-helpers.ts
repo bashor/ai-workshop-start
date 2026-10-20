@@ -72,15 +72,17 @@ export function recordFixture(id: string): Recording {
   return record(id, files);
 }
 
-/** The page at `?<query>`, mounted; every GitHub request it makes is in `requests`. */
+/** The page at `?<query>`, mounted; every GitHub request it makes is in `requests`, its Authorization in `authorizations`. */
 export function openPage(query: string, recording: Recording, options: { fetch?: Fetch } = {}) {
   const dom = new JSDOM(readFileSync(PAGE, 'utf8'), { url: `${ORIGIN}${query}` });
   const window = dom.window;
   const requests: string[] = [];
+  const authorizations: { url: string; authorization: string | undefined }[] = [];
   const answer = options.fetch ?? replay(recording);
   mountApp(window as unknown as Window, {
     fetch: (url, init) => {
       requests.push(url);
+      authorizations.push({ url, authorization: init?.headers?.Authorization });
       return answer(url, init);
     },
   });
@@ -91,6 +93,7 @@ export function openPage(query: string, recording: Recording, options: { fetch?:
     window,
     document,
     requests,
+    authorizations,
     $,
     $$,
     /** The page URL's query parameter. */
@@ -99,6 +102,10 @@ export function openPage(query: string, recording: Recording, options: { fetch?:
     scan(text: string) {
       ($('#repo') as HTMLInputElement).value = text;
       $('#scan')!.click();
+    },
+    /** Types `text` into the token field, next to the field at the top. */
+    token(text: string) {
+      ($('#token') as HTMLInputElement).value = text;
     },
     /** Types `text` into the filter above the skills, as typing does: an input event. */
     filter(text: string) {
