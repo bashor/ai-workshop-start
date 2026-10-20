@@ -1,4 +1,4 @@
-import { AtlasError } from './errors.ts';
+import { AtlasError, RateLimitError } from './errors.ts';
 import { SKILL_ROOTS } from './find.ts';
 import type { Source } from './scan.ts';
 
@@ -28,24 +28,65 @@ export function parseRepository(input: string): { owner: string; repo: string } 
   return match ? { owner: match[1], repo: match[2] } : parseGitHubUrl(input);
 }
 
+/** An organization: just its name, `owner`, or `https://github.com/owner` in the same forms. */
+export function parseOrganization(input: string): { owner: string } | undefined {
+  // A GitHub login: letters, digits and single hyphens, not at either end, at most 39.
+  const login = '([a-z\\d](?:[a-z\\d]|-(?=[a-z\\d])){0,38})';
+  const match = new RegExp(`^(?:(?:https?:\\/\\/)?(?:www\\.)?github\\.com\\/${login}\\/?|${login})$`, 'i').exec(input.trim());
+  return match ? { owner: match[1] ?? match[2] } : undefined;
+}
+
+/** What GitHub says about a repository: enough to open it. */
+export type RepositoryInfo = { name: string; full_name: string; default_branch: string };
+
 /** Resolves the default branch to a commit and lists the files that may be skills. */
 export async function openGitHub(input: string, options: GitHubOptions): Promise<Source> {
   const name = parseRepository(input);
   if (!name) throw new AtlasError(`Not a GitHub repository URL: ${input}`);
   const github = client(options);
-  const info = await github.json<{ full_name: string; default_branch: string }>(
+  const info = await github.json<RepositoryInfo>(
     `${API}/repos/${name.owner}/${name.repo}`,
     `Repository not found: https://github.com/${name.owner}/${name.repo}`,
   );
+  return open(github, info, options);
+}
+
+/** A repository already listed, such as an organization's: one request fewer. */
+export function openGitHubRepository(info: RepositoryInfo, options: GitHubOptions): Promise<Source> {
+  return open(client(options), info, options);
+}
+
+/** An organization's repositories, every page of them. */
+export async function listRepositories(owner: string, options: GitHubOptions): Promise<RepositoryInfo[]> {
+  const github = client(options);
+  const repositories: RepositoryInfo[] = [];
+  for (let page = 1; ; page++) {
+    const answer = await github.json<RepositoryInfo[]>(
+      `${API}/orgs/${encodeURIComponent(owner)}/repos?per_page=100&page=${page}`,
+      `Organization not found: https://github.com/${owner}`,
+    );
+    repositories.push(...answer);
+    if (answer.length < 100) return repositories;
+  }
+}
+
+async function open(github: Client, info: RepositoryInfo, options: GitHubOptions): Promise<Source> {
   const id = info.full_name;
-  const { sha } = await github.json<{ sha: string }>(`${API}/repos/${id}/commits/${encodePath(info.default_branch)}`);
+  const [organization, repo] = id.split('/');
+  const repository = { id, organization, name: repo, url: `https://github.com/${id}` };
+  const commit = await github.json<{ sha: string }>(`${API}/repos/${id}/commits/${encodePath(info.default_branch)}`).catch((error: unknown) => {
+    if (error instanceof EmptyRepositoryError) return undefined;
+    throw error;
+  });
+  // No commit yet, so no files and no skills.
+  if (!commit) return { repository: { ...repository, commit: '' }, paths: [], warnings: [], read: async () => undefined };
+  const { sha } = commit;
   const warnings: string[] = [];
   const paths = options.token
     ? await searchPaths(github, id)
     : await treePaths(github, id, sha, warnings, options.suggestToken ?? true);
-  const [organization, repo] = id.split('/');
   return {
-    repository: { id, organization, name: repo, url: `https://github.com/${id}`, commit: sha },
+    repository: { ...repository, commit: sha },
     paths,
     warnings,
     read: (path) => github.raw(`${RAW}/${id}/${sha}/${encodePath(path)}`),
@@ -104,6 +145,9 @@ function files(tree: Tree): string[] {
 
 type Client = ReturnType<typeof client>;
 
+/** A repository without a commit: GitHub answers 409 for its commits. */
+class EmptyRepositoryError extends AtlasError {}
+
 function client({ fetch, token, suggestToken = true }: GitHubOptions) {
   const headers: Record<string, string> = { Accept: 'application/vnd.github+json' };
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -124,8 +168,9 @@ function client({ fetch, token, suggestToken = true }: GitHubOptions) {
     const message = (body as { message?: unknown } | undefined)?.message;
     const text = typeof message === 'string' ? message : '';
     if (response.status === 404) throw new AtlasError(notFound);
+    if (response.status === 409 && /empty/i.test(text)) throw new EmptyRepositoryError(text);
     if ((response.status === 403 || response.status === 429) && /rate limit/i.test(text)) {
-      throw new AtlasError(`GitHub rate limit reached; ${token ? 'try again in a minute' : suggestToken ? 'set GITHUB_TOKEN' : 'try again later'}`);
+      throw new RateLimitError(`GitHub rate limit reached; ${token ? 'try again in a minute' : suggestToken ? 'set GITHUB_TOKEN' : 'try again later'}`);
     }
     if (response.status === 401) throw new AtlasError('GitHub rejected the token in GITHUB_TOKEN');
     throw new AtlasError(`GitHub answered ${response.status} for ${url}${text && `: ${text}`}`);
