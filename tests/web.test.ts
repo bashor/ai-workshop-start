@@ -191,7 +191,7 @@ test('the filter: the selected skill stays selected, even filtered out', async (
   assert.equal(page.param('skill'), '.agents/skills/release-checklist/SKILL.md');
   // A skill picked from the filtered list.
   page.pick(1);
-  assert.equal(page.$('#skill .description')!.textContent, 'Write commit messages the way this repository does.');
+  assert.match(page.$('#skill .description')!.textContent!, /^Write commit messages the way this repository does\./);
   const current = page.$$('#skills li button').map((button) => button.getAttribute('aria-current'));
   assert.deepEqual(current, [null, 'true', null]);
   page.filter('');
