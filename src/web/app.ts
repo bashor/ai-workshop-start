@@ -135,13 +135,14 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
         const result = await scanOrganization(org, {
           ...github(),
           signal: controller.signal,
+          // Once aborted, after an unexpected error too, the repositories still scanning change nothing.
           update: (partial) => {
-            if (!current()) return;
+            if (!current() || controller.signal.aborted) return;
             latest = partial;
             showOrganization(partial, { scanning: true });
           },
           progress: (done, total) => {
-            if (!current()) return;
+            if (!current() || controller.signal.aborted) return;
             const found = latest?.repositories.reduce((sum, repository) => sum + (repository.result?.skills.length ?? 0), 0) ?? 0;
             status.textContent =
               `Scanning ${org}… ${done} of ${total} ${total === 1 ? 'repository' : 'repositories'}` +
