@@ -12,6 +12,7 @@ An optional **token field** next to the text field: a GitHub token, as the CLI's
 - Filled → the token for the **GitHub API requests** of the scans, a repository's or an organization's
   - Leading and trailing spaces ignored; empty → no token, as without the field
   - Read at each scan: a changed token → used from the next scan on
+  - An organization's repositories: their files *through the tree*, as without a token, **not** code search, whose limit is about 10 requests a minute
 - *Never* in the page URL, never stored: a shared URL holds no token; a reload → the field empty
   - Not even before the page's script runs: the field is *not part of the form's own submission*
 - GitHub rejects it → `GitHub rejected the token in the token field`
