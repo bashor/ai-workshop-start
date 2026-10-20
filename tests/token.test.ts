@@ -129,7 +129,7 @@ test('GitHub rejects the --token → a message naming it, exit code 1', async ()
   assert.equal(fromEnvironment.stderr, 'GitHub rejected the token in GITHUB_TOKEN');
 });
 
-test('a directory: no request, the token unused', async () => {
+test('a local directory: --token accepted and ignored, no GitHub request', async () => {
   const scanned = await atlasWith(['scan', '--token', 'secret', FIXTURE]);
   const plain = await atlas(['scan', FIXTURE]);
   assert.equal(scanned.code, 0, scanned.stderr);

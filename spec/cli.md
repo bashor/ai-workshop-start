@@ -8,7 +8,7 @@ Prints the result **at once**; *nothing is stored*.
 - Not given → `GITHUB_TOKEN`, if set; neither → no token
 - No value, an empty one, or given twice → the usage, exit code 1, *no request*
 - GitHub rejects it → `GitHub rejected the token given with --token`, exit code 1
-- A directory: no request, the token unused
+- A local directory instead of a URL: `--token` *accepted and ignored*, since a directory is read from disk, with no GitHub request
 ## Output
 ```
 JetBrains/kotlin · 6 skills
