@@ -12,6 +12,7 @@ Work on every task in following stages:
 2. Update tests.
 3. Make implementation.
 4. Review changes, if you find problems return to previous steps.
+5. Attach a demo video to the PR, when applicable.
 
 After each stage make a commit. 
 
