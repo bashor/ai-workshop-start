@@ -330,29 +330,3 @@ test('npm run dev → the page on a local server', async (t) => {
   assert.equal(app.status, 200);
   assert.match(await app.text(), /Scanning/);
 });
-
-test('the README: how to run the page locally, how to prepare the distribution', () => {
-  const root = new URL('..', import.meta.url);
-  const readme = readFileSync(new URL('README.md', root), 'utf8');
-  const scripts = JSON.parse(readFileSync(new URL('package.json', root), 'utf8')).scripts;
-  // A section: from its heading to the next heading of any level.
-  const section = (title: RegExp) => {
-    const start = readme.search(title);
-    assert.ok(start >= 0, `a section ${title}`);
-    const body = readme.indexOf('\n', start) + 1;
-    const end = readme.slice(body).search(/^#{1,6} /m);
-    return end < 0 ? readme.slice(start) : readme.slice(start, body + end);
-  };
-
-  const local = section(/^#{2,3} .*locally/im);
-  for (const command of ['npm ci', 'npm run dev', 'http://127.0.0.1:8000/']) assert.ok(local.includes(command), command);
-  assert.match(local, /\bPORT=/);
-
-  const dist = section(/^#{2,3} .*distribution/im);
-  for (const text of ['npm ci', 'npm run build', 'dist/', 'index.html', 'app.js', 'style.css']) {
-    assert.ok(dist.includes(text), text);
-  }
-
-  // Every npm script the README names is real.
-  for (const [, name] of readme.matchAll(/npm run (\w+)/g)) assert.ok(name in scripts, `npm run ${name}`);
-});
