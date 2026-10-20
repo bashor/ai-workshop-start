@@ -18,6 +18,22 @@ const ACME: Recording = {
 
 const summary = (page: ReturnType<typeof openPage>) => page.$('#summary')?.textContent;
 
+/** Waits until the organization's scan is over: its list, no progress on the left. */
+const scanned = (page: ReturnType<typeof openPage>) =>
+  page.until(() => page.$('#skills')!.getAttribute('aria-busy') === 'false' && summary(page), 'the scan to be over');
+
+/** GitHub answering from `recording`, each URL containing `part` only once released. */
+function holding(recording: Recording, part: string) {
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  const answer = replay(recording);
+  const fetch = async (url: string, init?: { headers?: Record<string, string> }) => {
+    if (url.includes(part)) await held;
+    return answer(url, init);
+  };
+  return { fetch, release };
+}
+
 test('an organization: its name or its URL; a repository is not one', () => {
   for (const input of [
     'JetBrains',
@@ -39,7 +55,7 @@ test('an organization: its name or its URL; a repository is not one', () => {
 test('owner → every repository scanned, with a badge of its skills, most first, and ?org= in the page URL', async () => {
   const page = openPage('', ACME);
   page.scan('Acme');
-  await page.until(() => page.names().length > 0);
+  await scanned(page);
   assert.equal(summary(page), 'Acme · 4 repositories');
   assert.deepEqual(page.names(), ['fixture', 'docs', 'zeta', 'empty']);
   assert.deepEqual(page.badges(), ['5', '1', '1', '0']);
@@ -54,7 +70,7 @@ test("an organization's URL is scanned as the organization, with or without the 
   for (const url of ['https://www.github.com/Acme/', 'github.com/Acme', 'www.github.com/Acme/']) {
     const page = openPage('', ACME);
     page.scan(url);
-    await page.until(() => page.names().length > 0 || /not found/.test(page.$('#status')!.textContent!), url);
+    await scanned(page);
     assert.equal(summary(page), 'Acme · 4 repositories', url);
     assert.equal(page.param('org'), 'Acme', url);
   }
@@ -63,14 +79,14 @@ test("an organization's URL is scanned as the organization, with or without the 
 test('opening ?org= scans at once', async () => {
   const page = openPage('?org=Acme', ACME);
   assert.equal((page.$('#repo') as HTMLInputElement).value, 'Acme');
-  await page.until(() => page.names().length > 0);
+  await scanned(page);
   assert.equal(summary(page), 'Acme · 4 repositories');
 });
 
 test('click a repository → its skills, no new request; back → the organization again, no new scan', async () => {
   const page = openPage('', ACME);
   page.scan('Acme');
-  await page.until(() => page.names().length > 0);
+  await scanned(page);
   const requests = page.requests.length;
 
   page.pick(0);
@@ -103,7 +119,7 @@ test('a repository that failed → its message instead of the badge; the others 
     'https://api.github.com/repos/Acme/broken/commits/main': { status: 500, body: { message: 'Server Error' } },
   };
   const page = openPage('?org=Acme', broken);
-  await page.until(() => page.names().length > 0);
+  await scanned(page);
   assert.deepEqual(page.names(), ['docs', 'zeta', 'broken']);
   assert.deepEqual(page.badges(), ['1', '1']);
   assert.equal(
@@ -120,7 +136,7 @@ test('an empty repository → 0 skills', async () => {
     'https://api.github.com/repos/Acme/new/commits/main': { status: 409, body: { message: 'Git Repository is empty.' } },
   };
   const page = openPage('?org=Acme', empty);
-  await page.until(() => page.names().length > 0);
+  await scanned(page);
   assert.deepEqual(page.names(), ['docs', 'new']);
   assert.deepEqual(page.badges(), ['1', '0']);
 });
@@ -133,7 +149,7 @@ test('the rate limit → the rest not scanned, a warning above the list', async 
     'https://api.github.com/repos/Acme/a/commits/main': { status: 403, body: { message: 'API rate limit exceeded for 192.0.2.1.' } },
   };
   const page = openPage('?org=Acme', limited);
-  await page.until(() => page.names().length > 0);
+  await scanned(page);
   assert.deepEqual(page.$$('#warnings li').map((element) => element.textContent), [
     'GitHub rate limit reached; try again later. Not scanned: 3 repositories',
   ]);
@@ -153,7 +169,7 @@ test('every page of repositories, 100 a page', async () => {
     ...Object.assign({}, ...names.map((name) => record(`Acme/${name}`, {}))),
   };
   const page = openPage('?org=Acme', many);
-  await page.until(() => page.names().length > 0);
+  await scanned(page);
   assert.equal(summary(page), 'Acme · 101 repositories');
   assert.equal(page.names().at(-1), 'r100');
 });
@@ -182,21 +198,13 @@ test('scanning: the progress; a new scan replaces the running one, and its repos
     ...Object.assign({}, ...names.map((name) => record(`Acme/${name}`, { [`.claude/skills/${name}/SKILL.md`]: SKILL(name) }))),
     ...record('Acme/docs', { '.claude/skills/guide/SKILL.md': SKILL('guide') }),
   };
-  let release!: () => void;
-  const held = new Promise<void>((resolve) => (release = resolve));
-  const answer = replay(recording);
-  const page = openPage('', recording, {
-    // Acme/a answers only once released.
-    fetch: async (url, init) => {
-      if (url.includes('Acme/a/')) await held;
-      return answer(url, init);
-    },
-  });
+  // Acme/a answers only once released.
+  const { fetch, release } = holding(recording, 'Acme/a/');
+  const page = openPage('', recording, { fetch });
   page.scan('Acme');
   assert.match(page.$('#status')!.textContent!, /^Scanning Acme/);
   assert.equal(page.$('#skills')!.getAttribute('aria-busy'), 'true');
-  await page.until(() => page.$('#status')!.textContent === 'Scanning Acme… 5 of 6 repositories', 'the progress');
-  assert.deepEqual(page.names(), []);
+  await page.until(() => page.$('#status')!.textContent === 'Scanning Acme… 5 of 6 repositories · 5 skills', 'the progress');
 
   page.scan('Acme/docs');
   await page.until(() => summary(page) === 'Acme/docs · 1 skill');
@@ -217,4 +225,65 @@ test('the GitHub rate limit on the list of repositories → try again later', as
   const page = openPage('?org=Acme', limited);
   await page.until(() => page.$('#status')!.textContent && !/^Scanning/.test(page.$('#status')!.textContent!));
   assert.equal(page.$('#status')!.textContent, 'GitHub rate limit reached; try again later');
+});
+
+test('as they come: the repositories before the scan is over, their badges as soon as they are scanned', async () => {
+  const recording: Recording = {
+    ...recordOrganization('Acme', ['a', 'broken', 'docs', 'empty', 'fixture']),
+    ...record('Acme/a', { '.claude/skills/a/SKILL.md': SKILL('a') }),
+    ...record('Acme/docs', { '.claude/skills/guide/SKILL.md': SKILL('guide'), 'README.md': '# Docs\n' }),
+    ...record('Acme/empty', { 'README.md': '# Nothing here\n' }),
+    ...recordFixture('Acme/fixture'),
+    'https://api.github.com/repos/Acme/broken/commits/main': { status: 500, body: { message: 'Server Error' } },
+  };
+  // Acme/a answers only once released.
+  const { fetch, release } = holding(recording, 'Acme/a/');
+  const page = openPage('?org=Acme', recording, { fetch });
+  await page.until(() => page.$('#status')!.textContent === 'Scanning Acme… 4 of 5 repositories · 6 skills', 'the progress');
+  assert.equal(summary(page), 'Acme · 5 repositories');
+  // The scanned ones by their skills, then the one not scanned yet, then the failed one.
+  assert.deepEqual(page.names(), ['fixture', 'docs', 'empty', 'a', 'broken']);
+  assert.deepEqual(page.badges(), ['5', '1', '0']);
+  assert.deepEqual(page.$$('#skills li .pending').map((element) => element.textContent), ['…']);
+  assert.equal(page.$$('#skills li')[3].querySelector('.pending')!.getAttribute('title'), 'Scanning…');
+  assert.match(page.$$('#skills li')[4].querySelector('.error')!.textContent!, /^GitHub answered 500/);
+  assert.equal(page.$('#skills')!.getAttribute('aria-busy'), 'true');
+
+  // Not clickable until the scan is over.
+  assert.ok(page.$$('#skills li button').every((button) => (button as HTMLButtonElement).disabled));
+  page.pick(0);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(page.param('org'), 'Acme');
+  assert.equal(summary(page), 'Acme · 5 repositories');
+
+  release();
+  await scanned(page);
+  assert.equal(page.$('#status')!.textContent, '');
+  assert.deepEqual(page.names(), ['fixture', 'a', 'docs', 'empty', 'broken']);
+  assert.deepEqual(page.badges(), ['5', '1', '1', '0']);
+  assert.equal(page.$$('#skills li .pending').length, 0);
+  assert.ok(page.$$('#skills li button').every((button) => !(button as HTMLButtonElement).disabled));
+  page.pick(1);
+  await page.until(() => summary(page) === 'Acme/a · 1 skill', 'the repository');
+});
+
+test('as they come: each page of repositories listed before the next one', async () => {
+  const names = Array.from({ length: 101 }, (_, index) => `r${String(index).padStart(3, '0')}`);
+  const many: Recording = {
+    ...recordOrganization('Acme', names),
+    ...Object.assign({}, ...names.map((name) => record(`Acme/${name}`, {}))),
+  };
+  // The second page answers only once released.
+  const { fetch, release } = holding(many, 'page=2');
+  const page = openPage('?org=Acme', many, { fetch });
+  await page.until(() => summary(page) === 'Acme · 100 repositories', 'the first page');
+  assert.equal(page.names().length, 100);
+  assert.equal(page.$$('#skills li .pending').length, 100);
+  assert.equal(page.$('#status')!.textContent, 'Scanning Acme…');
+  assert.ok(!page.requests.some((url) => url.includes('/repos/Acme/r')), 'no repository scanned before every one is listed');
+
+  release();
+  await scanned(page);
+  assert.equal(summary(page), 'Acme · 101 repositories');
+  assert.equal(page.badges().length, 101);
 });
