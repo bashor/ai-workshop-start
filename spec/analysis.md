@@ -22,7 +22,7 @@ When the skill was last changed: the date of the **last commit** that changed it
 - Up to the *scanned commit*; the committer's date
 - Shown as `YYYY-MM-DD`, in UTC
 - Copies: the date of the path listed
-- GitHub: the commits of the directory, *one request per skill*, at the same time as the files are read
+- GitHub: the commits of the directory, *one request per skill listed*, none for its copies
   - The request fails, the rate limit too → the skill listed *without* the date, one warning per reason: `last updated not known for N skills: <message>`; the scan goes on
 - A local directory: the last commit from **git**, uncommitted changes not counted
   - Not in git, or never committed → no date, no warning
