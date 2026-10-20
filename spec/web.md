@@ -46,7 +46,12 @@ Every repository of the organization scanned, **one after another**, a few at a 
   - The rate limit → the rest *not scanned*, a warning above the list
   - No repositories → `No repositories found`
 - Click a repository → its skills, as for `owner/repo`; *no new request*, the scan is reused
-- Scanning: the progress, `Scanning owner… 3 of 20 repositories`
+- Scanning: the progress, `Scanning owner… 3 of 20 repositories · 12 skills`, the skills found so far
+- **As they come**, while scanning: the list shown before the scan is over
+  - The repositories listed as soon as GitHub lists them, each page of them; `owner · N repositories`, the ones listed so far
+  - One not scanned yet → `…` instead of the badge; its badge as soon as it is scanned, its message if it failed
+  - Sorted as above, the ones not scanned yet after the scanned ones, before the failed ones
+  - Not clickable until the scan is over
 - Not an organization → `Organization not found: https://github.com/owner`
 ## Page URL
 Shareable: the page URL holds the state
