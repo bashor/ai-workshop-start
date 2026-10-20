@@ -1,6 +1,5 @@
 // The decisions in spec/analysis.md and spec/cli.md, checked on what the real command prints for
-// ./fixture and for a small GitHub repository answered in tests/helpers.ts. The edge cases of
-// where skills live are yours to add.
+// ./fixture and for small GitHub repositories answered from recordings.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
@@ -11,6 +10,7 @@ import { test } from 'node:test';
 import { openGitHub } from '../src/core/github.ts';
 import { parseSkill } from '../src/core/parse.ts';
 import { replay } from '../src/core/replay.ts';
+import { scan } from '../src/core/scan.ts';
 import { atlas, CLI, EXAMPLE_COMMIT, FIXTURE } from './helpers.ts';
 
 const fixture = await atlas(['scan', FIXTURE]);
@@ -38,21 +38,32 @@ test('scan prints the repository, then each skill with its first sentence and pi
   );
 });
 
-test('./fixture: every skill, sorted by name, linked to its file, with a warning for the malformed one', () => {
+test('./fixture: every real skill, sorted by name, linked to its file, with a warning for the malformed one', () => {
   const root = pathToFileURL(FIXTURE).href;
   assert.equal(fixture.code, 0);
   assert.equal(
     fixture.stdout,
     [
-      'fixture · 3 skills',
+      'fixture · 5 skills',
+      // The same in two agents' roots: once, with its copy.
       "code-style — Follow the project's code style.",
-      `  ${root}/.github/skills/code-style/SKILL.md`,
+      `  ${root}/.claude/skills/code-style/SKILL.md`,
+      '  also in .github/skills/code-style/SKILL.md',
+      // The same name, a different description: one per agent.
+      'commits — Write commit messages in the Conventional Commits style.',
+      `  ${root}/.agents/skills/commits/SKILL.md`,
       'commits — Write commit messages the way this repository does.',
       `  ${root}/.claude/skills/commits/SKILL.md`,
+      // The same file in a module: a different skill.
+      'commits — Write commit messages the way this repository does.',
+      `  ${root}/plugins/editor/.claude/skills/commits/SKILL.md`,
       'release-checklist',
       `  ${root}/.agents/skills/release-checklist/SKILL.md`,
     ].join('\n'),
   );
+  // Not real: shipped by a plugin, under tests, a symbolic link; not listed, and no warning.
+  assert.doesNotMatch(fixture.stdout, /shipped|tested|linked/);
+  assert.equal(fixture.stderr.split('\n').length, 1);
   assert.match(fixture.stderr, /^warning: \.agents\/skills\/release-checklist\/SKILL\.md: malformed front matter: /);
 });
 
