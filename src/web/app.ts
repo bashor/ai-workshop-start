@@ -32,6 +32,8 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
   let organization: OrganizationResult | undefined;
   /** The skill to select, once the repository is scanned. */
   let wanted: string | undefined;
+  /** The selected skill's path: marked in the list again when the filter changes. */
+  let selected: string | undefined;
   /** Counts scans: only the latest one is shown. */
   let scans = 0;
   /** Stops the running organization scan from starting other repositories. */
@@ -207,7 +209,7 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
     showSkill(undefined, 'repository');
   }
 
-  /** `owner/repo · N skills`, the warnings, then the skills as the CLI lists them. */
+  /** `owner/repo · N skills`, the warnings, the filter, then the skills as the CLI lists them. */
   function showResult({ repository, skills: found, warnings }: ScanResult) {
     const summary = element('h2', `${repository.id} · ${found.length} ${found.length === 1 ? 'skill' : 'skills'}`);
     summary.id = 'summary';
@@ -216,29 +218,75 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
     warningList.append(...warnings.map((warning) => element('li', warning)));
     const list = element('ul');
     list.id = 'list';
-    if (found.length === 0) list.append(element('li', 'No skills found', 'empty'));
-    for (const skill of found) {
-      const button = element('button');
-      button.type = 'button';
-      button.dataset.path = skill.path;
-      button.append(element('span', skill.name, 'name'), element('span', firstSentence(skill.description), 'description'));
-      if (skill.copies.length > 0) button.append(element('span', `also in ${skill.copies.join(', ')}`, 'copies'));
-      button.addEventListener('click', () => {
-        wanted = skill.path;
-        history.pushState(null, '', query({ repo: shown && 'repo' in shown ? shown.repo : undefined, skill: skill.path }));
-        select(skill.path);
-      });
-      const item = element('li');
-      item.append(button);
-      list.append(item);
+    if (found.length === 0) {
+      list.append(element('li', 'No skills found', 'empty'));
+      results.replaceChildren(summary, warningList, list);
+      return;
     }
-    results.replaceChildren(summary, warningList, list);
+    const filter = element('input');
+    filter.id = 'filter';
+    filter.type = 'search';
+    filter.placeholder = 'Filter skills';
+    filter.setAttribute('aria-label', 'Filter skills');
+    filter.setAttribute('aria-controls', 'list');
+    filter.autocomplete = 'off';
+    filter.spellcheck = false;
+    const count = element('span');
+    count.id = 'count';
+    count.setAttribute('aria-live', 'polite');
+    const bar = element('div', undefined, 'filter');
+    bar.append(filter, count);
+
+    /** The skills whose name or shown description contain the filter's text, ignoring case; the matches highlighted. */
+    const showMatching = () => {
+      const text = filter.value.trim().toLowerCase();
+      const items: HTMLLIElement[] = [];
+      for (const skill of found) {
+        const description = firstSentence(skill.description);
+        if (text && !skill.name.toLowerCase().includes(text) && !description.toLowerCase().includes(text)) continue;
+        const button = element('button');
+        button.type = 'button';
+        button.dataset.path = skill.path;
+        if (skill.path === selected) button.setAttribute('aria-current', 'true');
+        button.append(highlighted(skill.name, text, 'name'), highlighted(description, text, 'description'));
+        if (skill.copies.length > 0) button.append(element('span', `also in ${skill.copies.join(', ')}`, 'copies'));
+        button.addEventListener('click', () => {
+          wanted = skill.path;
+          history.pushState(null, '', query({ repo: shown && 'repo' in shown ? shown.repo : undefined, skill: skill.path }));
+          select(skill.path);
+        });
+        const item = element('li');
+        item.append(button);
+        items.push(item);
+      }
+      count.textContent = `${items.length} of ${found.length}`;
+      if (items.length === 0) items.push(element('li', 'No matching skills', 'empty'));
+      list.replaceChildren(...items);
+    };
+    filter.addEventListener('input', showMatching);
+    showMatching();
+    results.replaceChildren(summary, warningList, bar, list);
+  }
+
+  /** `text` in a span, every occurrence of `match` (lowercase) in a mark. */
+  function highlighted(text: string, match: string, className: string) {
+    const span = element('span', undefined, className);
+    const lower = text.toLowerCase();
+    let start = 0;
+    // A few letters change length in lowercase: the positions would not fit the text, so no marks.
+    for (let at = match && lower.length === text.length ? lower.indexOf(match) : -1; at >= 0; at = lower.indexOf(match, start)) {
+      span.append(text.slice(start, at), element('mark', text.slice(at, at + match.length)));
+      start = at + match.length;
+    }
+    span.append(text.slice(start));
+    return span;
   }
 
   /** The skill at `path`, or the one `path` is a copy of. */
   function select(path: string | undefined) {
     const found = shown && 'repo' in shown ? (shown.result?.skills ?? []) : [];
     const skill = path === undefined ? undefined : found.find((skill) => skill.path === path || skill.copies.includes(path));
+    selected = skill?.path;
     for (const button of results.querySelectorAll<HTMLButtonElement>('#list button')) {
       if (button.dataset.path === skill?.path) button.setAttribute('aria-current', 'true');
       else button.removeAttribute('aria-current');
