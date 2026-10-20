@@ -109,6 +109,116 @@ test('neither a repository nor an organization → a clear message and no reques
   assert.equal(page.param('repo'), null);
 });
 
+test('the filter: a field on top of the skills list, X of Y next to it', async () => {
+  const page = openPage('?repo=JetBrains/fixture', ALL);
+  await page.until(() => page.names().length > 0);
+  const filter = page.$('#filter') as HTMLInputElement;
+  assert.ok(filter);
+  assert.equal(filter.value, '');
+  const order = filter.compareDocumentPosition(page.$('#list')!);
+  assert.ok(order & page.window.Node.DOCUMENT_POSITION_FOLLOWING, 'the filter comes before the list');
+  assert.equal(page.$('#filter-count')!.textContent, '5 of 5');
+  assert.deepEqual(page.marks(), []);
+});
+
+test('the filter, while typing: names and descriptions that contain the text, case-insensitive, highlighted', async () => {
+  const page = openPage('?repo=JetBrains/fixture', ALL);
+  await page.until(() => page.names().length > 0);
+  page.filter('COMMIT');
+  assert.deepEqual(page.names(), ['commits', 'commits', 'commits']);
+  assert.equal(page.$('#filter-count')!.textContent, '3 of 5');
+  // Every match, in the names and the descriptions, as written there.
+  const first = page.$('#skills li button')!;
+  assert.deepEqual(
+    [...first.querySelectorAll('mark')].map((mark) => mark.textContent),
+    ['commit', 'commit', 'Commit'],
+  );
+  assert.equal(first.querySelector('.name')!.textContent, 'commits');
+  assert.equal(first.querySelector('.description')!.textContent, 'Write commit messages in the Conventional Commits style.');
+
+  // The description alone.
+  page.filter('conventional');
+  assert.deepEqual(page.names(), ['commits']);
+  assert.deepEqual(page.marks(), ['Conventional']);
+  assert.equal(page.$('#filter-count')!.textContent, '1 of 5');
+
+  // Back to every skill.
+  page.filter('');
+  assert.deepEqual(page.names(), ['code-style', 'commits', 'commits', 'commits', 'release-checklist']);
+  assert.equal(page.$('#filter-count')!.textContent, '5 of 5');
+  assert.deepEqual(page.marks(), []);
+});
+
+test('the filter: the text taken literally, spaces around it ignored', async () => {
+  const page = openPage('?repo=JetBrains/fixture', ALL);
+  await page.until(() => page.names().length > 0);
+  page.filter('  style  ');
+  assert.deepEqual(page.names(), ['code-style', 'commits']);
+  assert.equal(page.$('#filter-count')!.textContent, '2 of 5');
+  page.filter('   ');
+  assert.equal(page.$('#filter-count')!.textContent, '5 of 5');
+  // Not a regular expression.
+  page.filter('.');
+  assert.equal(page.$('#filter-count')!.textContent, '4 of 5');
+  assert.ok(page.marks().every((mark) => mark === '.'));
+  page.filter('c.*e');
+  assert.deepEqual(page.names(), []);
+});
+
+test('the filter: nothing matches → No skills match', async () => {
+  const page = openPage('?repo=JetBrains/fixture', ALL);
+  await page.until(() => page.names().length > 0);
+  page.filter('no such skill');
+  assert.deepEqual(page.names(), []);
+  assert.equal(page.$('#filter-count')!.textContent, '0 of 5');
+  assert.equal(page.$('#list')!.textContent, 'No skills match');
+});
+
+test('the filter: no skills at all → no filter, No skills found', async () => {
+  const page = openPage('?repo=JetBrains/empty', ALL);
+  await page.until(() => page.$('#summary'));
+  assert.equal(page.$('#filter'), null);
+  assert.equal(page.$('#list')!.textContent, 'No skills found');
+});
+
+test('the filter: the selected skill stays selected, even filtered out', async () => {
+  const page = openPage('?repo=JetBrains/fixture', ALL);
+  await page.until(() => page.names().length > 0);
+  page.pick(4);
+  assert.equal(page.$('#skill h1')!.textContent, 'release-checklist');
+  page.filter('commit');
+  assert.equal(page.$('#skill h1')!.textContent, 'release-checklist');
+  assert.equal(page.param('skill'), '.agents/skills/release-checklist/SKILL.md');
+  // A skill picked from the filtered list.
+  page.pick(1);
+  assert.equal(page.$('#skill .description')!.textContent, 'Write commit messages the way this repository does.');
+  const current = page.$$('#skills li button').map((button) => button.getAttribute('aria-current'));
+  assert.deepEqual(current, [null, 'true', null]);
+  page.filter('');
+  assert.equal(page.$$('#skills li button')[2].getAttribute('aria-current'), 'true');
+});
+
+test('the filter: empty again after a new scan or for another repository; not in the page URL', async () => {
+  const page = openPage('?repo=JetBrains/fixture', ALL);
+  await page.until(() => page.names().length > 0);
+  page.filter('commit');
+  assert.equal(page.window.location.search, '?repo=JetBrains/fixture');
+  page.pick(0);
+  assert.equal(page.window.location.search, '?repo=JetBrains/fixture&skill=.agents/skills/commits/SKILL.md');
+  assert.equal(page.$('#filter-count')!.textContent, '3 of 5', 'picking a skill keeps the filter');
+
+  page.scan('JetBrains/fixture');
+  await page.until(() => page.names().length === 5, 'the new scan');
+  assert.equal((page.$('#filter') as HTMLInputElement).value, '');
+  assert.equal(page.$('#filter-count')!.textContent, '5 of 5');
+
+  page.filter('commit');
+  page.scan('JetBrains/docs');
+  await page.until(() => page.$('#summary')?.textContent === 'JetBrains/docs · 1 skill');
+  assert.equal((page.$('#filter') as HTMLInputElement).value, '');
+  assert.equal(page.$('#filter-count')!.textContent, '1 of 1');
+});
+
 test('warnings are shown above the list, and the scan goes on', async () => {
   const page = openPage('', ALL);
   page.scan('JetBrains/fixture');
