@@ -207,5 +207,5 @@ test('a local directory: never committed, or not in git → no date, no warning'
   assert.equal(scanned.status, 0, scanned.stderr);
   assert.equal(scanned.stderr, '');
   assert.doesNotMatch(scanned.stdout, /updated/);
-  assert.match(scanned.stdout, /^plain-\w+ · 1 skill\nplain — The plain skill\.\n {2}file:\S+\n$/);
+  assert.match(scanned.stdout, /^skill-atlas-plain-\w+ · 1 skill\nplain — The plain skill\.\n {2}file:\S+\n$/);
 });

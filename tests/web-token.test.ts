@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Recording } from '../src/core/replay.ts';
-import { openPage, record, recordOrganization, TOKEN_KEY } from './web-helpers.ts';
+import { COMMIT, openPage, record, recordOrganization, TOKEN_KEY } from './web-helpers.ts';
 
 const SKILL = '.claude/skills/commits/SKILL.md';
 const TEXT = '---\nname: commits\ndescription: Write commit messages the way this repository does.\n---\n# Commits\n';
@@ -142,6 +142,8 @@ test('a saved token → every GitHub API request of a repository scan carries it
       'https://api.github.com/repos/JetBrains/example',
       'https://api.github.com/repos/JetBrains/example/commits/main',
       'https://api.github.com/search/code?q=filename:SKILL.md+repo:JetBrains/example&per_page=100&page=1',
+      // The skill's last update.
+      `https://api.github.com/repos/JetBrains/example/commits?sha=${COMMIT}&path=.claude/skills/commits&per_page=1`,
     ],
   );
   for (const request of api(page)) assert.equal(request.authorization, 'Bearer secret', request.url);
