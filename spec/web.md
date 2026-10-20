@@ -31,14 +31,14 @@ An **Add token** button next to the text field: a GitHub token, as the CLI's `--
   - Each skill a **card**: its name, with its *folder* next to it as a tag
     - The folder: the agent's root it is in, `.claude/skills`, or `plugins/x/.claude/skills` in a module; the full path on hover
     - The description: at most **2 lines**, then `…`; the whole first sentence on hover
-    - `updated <YYYY-MM-DD>` under the description: the skill's *last updated* date; no date → nothing
+    - `updated <YYYY-MM-DD>` under the description: the skill's *last updated* date, in **italics**, told apart from the description; no date → nothing
   - `also in` for copies, then a **chip** for each copy: its folder; its full path on hover
     - The text: the chips separated by `, `, not shown: `also in .agents/skills, .github/skills`
   - The selected skill: an **accent bar** on its left
 - **Right panel**: the selected skill's `SKILL.md`, **rendered Markdown**
   - Its name and description on top, from the front matter; the front matter *not shown* as text
   - The link to the file, pinned to the *scanned commit*
-  - `Updated <YYYY-MM-DD>` next to the link; the exact time on hover
+  - `Updated <YYYY-MM-DD>` next to the link, in **italics**; the exact time on hover
   - Relative links and images: from the skill's directory, at the scanned commit
   - Nothing selected → a hint to pick a skill
 - Click a skill → it is selected, the right panel shows it
