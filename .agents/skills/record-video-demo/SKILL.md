@@ -19,7 +19,9 @@ A demo shows the change from the task working, the way a user sees it: 10–30 s
 - `.demo/` is never committed.
 - Don't change `package.json` or `package-lock.json` for the demo.
 - Show real behavior: the real page and real CLI output, no mocks or edited frames.
-  Prefer `fixture/` or a small public repository, so the demo doesn't depend on a rate limit.
+  Prefer `fixture/` as a repo, so the demo doesn't depend on a rate limit.
+  Don't use real repository unless it's required by task or asked explicitly.
+  If a real repository is required, but there is no specific one, use a small public repository.
 
 ## 1. Tools
 
