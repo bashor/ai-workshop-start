@@ -75,6 +75,48 @@ test('the date request fails → the skill without the date, a warning, the scan
   );
 });
 
+const left = (remaining: number) => ({ 'x-ratelimit-resource': 'core', 'x-ratelimit-remaining': String(remaining) });
+
+test('the reserve, in the page: no date request once 20 or fewer API requests are left, `try again later`', async () => {
+  const recording = { ...TOOLS };
+  // 22 left after the commit; the tree is one more: one date.
+  recording['https://api.github.com/repos/Acme/tools/commits/main'] = { ...recording['https://api.github.com/repos/Acme/tools/commits/main'], headers: left(22) };
+  const page = openPage('', recording);
+  page.scan('Acme/tools');
+  await page.until(() => page.names().length > 0);
+  assert.deepEqual(updated(page), ['updated 2026-09-01', undefined, undefined]);
+  assert.equal(page.requests.filter((url) => url.includes('/commits?')).length, 1);
+  assert.deepEqual(
+    page.$$('#warnings li').map((item) => item.textContent),
+    ['last updated not known for 2 skills: GitHub rate limit nearly reached; try again later'],
+  );
+});
+
+test("the reserve, for an organization: one count for all of its repositories", async () => {
+  const names = ['a', 'b', 'c'];
+  const recording: Recording = recordOrganization('Acme', names);
+  for (const name of names) {
+    const files: Record<string, string> = {};
+    for (let i = 0; i < 8; i++) files[`.claude/skills/${name}${i}/SKILL.md`] = SKILL(`${name}${i}`);
+    Object.assign(recording, record(`Acme/${name}`, files));
+  }
+  // 40 left after the list: each repository on its own would get all 8 of its dates.
+  recording['https://api.github.com/orgs/Acme/repos?per_page=100&page=1'].headers = left(40);
+  const page = openPage('', recording);
+  page.scan('Acme');
+  await page.until(() => page.badges().length === 3);
+  // Every API request after the list, in the order sent: a date only while more than 20 are left.
+  const sent = page.requests.slice(1).filter((url) => url.startsWith('https://api.github.com/'));
+  let remaining = 40;
+  for (const url of sent) {
+    if (url.includes('/commits?')) assert.ok(remaining > 20, `${url} with ${remaining} left`);
+    remaining--;
+  }
+  const dates = sent.filter((url) => url.includes('/commits?')).length;
+  assert.ok(dates > 0 && dates <= 40 - 20 - 6, `${dates} dates`);
+  assert.deepEqual(page.badges(), ['8', '8', '8']);
+});
+
 test("an organization's repository: its skills with the dates, no new request", async () => {
   const page = openPage('', { ...recordOrganization('Acme', ['tools']), ...TOOLS });
   page.scan('Acme');

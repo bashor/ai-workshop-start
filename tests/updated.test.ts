@@ -136,6 +136,48 @@ test('the request fails, the rate limit too → the skills without the date, one
   );
 });
 
+/** GitHub's rate limit headers: `remaining` requests left for `resource`. */
+const left = (remaining: number, resource = 'core') => ({ 'x-ratelimit-resource': resource, 'x-ratelimit-remaining': String(remaining) });
+
+/** `count` skills, s00, s01…, in .claude/skills. */
+function many(count: number): Record<string, string> {
+  const files: Record<string, string> = {};
+  for (let i = 0; i < count; i++) files[`.claude/skills/s${String(i).padStart(2, '0')}/SKILL.md`] = SKILL(`s${String(i).padStart(2, '0')}`);
+  return files;
+}
+
+test('a reserve: no date request once 20 or fewer API requests are left; the rest without a date, one warning', async () => {
+  const recording = record('Acme/big', many(30));
+  // 25 left after the commit; the tree is one more, so four dates.
+  recording['https://api.github.com/repos/Acme/big/commits/main'].headers = left(25);
+  const scanned = await atlas('github.com/Acme/big', recording);
+  assert.equal(scanned.code, 0, scanned.stderr);
+  const dates = scanned.requests.filter((url) => url.includes('/commits?'));
+  assert.equal(dates.length, 4);
+  // The first skills listed have theirs.
+  assert.deepEqual(scanned.stdout.split('\n').filter((line) => line.startsWith('  updated')).length, 4);
+  assert.match(scanned.stdout, /^s03 — .*\n.*\n {2}updated 2026-10-14\ns04 — .*\n {2}https:\S+\ns05/m);
+  assert.equal(scanned.stderr, 'warning: last updated not known for 26 skills: GitHub rate limit nearly reached; set GITHUB_TOKEN');
+});
+
+test('the reserve: plenty left → every date; code search’s own limit not counted', async () => {
+  const recording: Recording = {
+    ...record('Acme/searched', many(3)),
+    [`https://api.github.com/search/code?q=filename:SKILL.md+repo:Acme/searched&per_page=100&page=1`]: {
+      status: 200,
+      body: { total_count: 3, items: Object.keys(many(3)).map((path) => ({ path })) },
+      headers: left(1, 'search'),
+    },
+  };
+  recording['https://api.github.com/repos/Acme/searched/commits/main'].headers = left(4000);
+  const stdout: string[] = [];
+  const stderr: string[] = [];
+  const context = nodeContext({ fetch: replay(recording), env: { GITHUB_TOKEN: 'secret' }, print: (text) => stdout.push(text), error: (text) => stderr.push(text) });
+  assert.equal(await run(['scan', 'github.com/Acme/searched'], context), 0);
+  assert.equal(stderr.join('\n'), '');
+  assert.equal(stdout.filter((line) => line.startsWith('  updated')).length, 3);
+});
+
 /** A new git repository in a temporary directory; `commit` commits everything at `date`. */
 function repository(t: TestContext) {
   const root = mkdtempSync(join(tmpdir(), 'skill-atlas-git-'));
