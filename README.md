@@ -19,7 +19,9 @@ Set `GITHUB_TOKEN` for a higher GitHub rate limit. `npm test` runs the tests.
 
 The same in the browser: a search page, a repository's skills on the left, the selected `SKILL.md` on the
 right. Type `owner/repo` or a GitHub URL, press Enter or **Scan**, click a skill. The page URL holds the
-repository and the skill, so it can be shared. The page calls the GitHub API with no token.
+repository and the skill, so it can be shared. Or type an organization, `owner` or
+`https://github.com/owner`: its repositories are listed, each with the number of its skills; click one to
+see them. The page calls the GitHub API with no token.
 
 ### Run locally
 

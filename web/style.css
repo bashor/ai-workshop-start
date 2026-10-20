@@ -45,3 +45,8 @@ main { flex: 1; display: flex; min-height: 0; }
 .markdown code { font-size: 0.9em; }
 .markdown table { border-collapse: collapse; }
 .markdown th, .markdown td { border: 1px solid var(--border); padding: 0.25rem 0.5rem; }
+#list button:has(.badge) { display: flex; align-items: center; gap: 0.5rem; }
+#list button:has(.badge) .name { flex: 1; }
+#list .badge { min-width: 1.6rem; padding: 0 0.45rem; border-radius: 999px; text-align: center; font-size: 0.8rem; font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 18%, transparent); }
+#list .error { display: block; font-size: 0.85rem; color: var(--muted); }
