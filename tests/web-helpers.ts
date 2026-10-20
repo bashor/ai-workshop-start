@@ -100,6 +100,14 @@ export function openPage(query: string, recording: Recording, options: { fetch?:
       ($('#repo') as HTMLInputElement).value = text;
       $('#scan')!.click();
     },
+    /** Types `text` into the filter above the skills, as typing does: an input event. */
+    filter(text: string) {
+      const filter = $('#filter') as HTMLInputElement;
+      filter.value = text;
+      filter.dispatchEvent(new window.Event('input', { bubbles: true }));
+    },
+    /** The highlighted parts in the left panel: the text of each mark, by the class of its parent. */
+    marks: (part: 'name' | 'description') => $$(`#skills li .${part} mark`).map((element) => element.textContent),
     /** The skill names in the left panel. */
     names: () => $$('#skills li .name').map((element) => element.textContent),
     /** The badges in the left panel: the number of each repository's skills. */
