@@ -7,6 +7,14 @@ A text field **at the top**: `owner/repo`, or a GitHub URL as the CLI takes it
 - Enter or the **Scan** button → the scan
 - Neither a repository nor an organization → a clear message, *no request*
 - No local directories: GitHub only
+## Token
+An optional **token field** next to the text field: a GitHub token, as the CLI's `--token`, *hidden* as typed
+- Filled → the token for the **GitHub API requests** of the scans, a repository's or an organization's
+  - Leading and trailing spaces ignored; empty → no token, as without the field
+  - Read at each scan: a changed token → used from the next scan on
+- *Never* in the page URL, never stored: a shared URL holds no token; a reload → the field empty
+- GitHub rejects it → `GitHub rejected the token in the token field`
+- The rate limit with a token → `GitHub rate limit reached; try again in a minute`
 ## Layout
 - **Left panel**: the skills, as the CLI lists them
   - `owner/repo · N skills` on top; sorted by **name**; the description's *first sentence*
@@ -50,12 +58,12 @@ Shareable: the page URL holds the state
 - No skills → `No skills found`
 - Warnings → shown above the list, the scan goes on
 - Unreachable repository, GitHub rate limit → a clear message instead of the list
-  - The rate limit: *try again later*; no `GITHUB_TOKEN` in the page
+  - The rate limit: *try again later*; no `GITHUB_TOKEN` in the page, only the token field
 ## Safety
 `SKILL.md` is *untrusted*: rendered **without** raw HTML or scripts
 ## Architecture
 Core: fetch → find → parse, the same as the CLI's. Web UI: a *thin client*.
-- GitHub API from the browser, **no token**
+- GitHub API from the browser, **no token** unless one is in the token field
 - The core gives a skill's body, for the right panel
 - The core scans an organization: its repositories from the GitHub API, each one scanned as above
 ## Build and run
