@@ -86,6 +86,14 @@ export function openPage(query: string, recording: Recording, options: { fetch?:
       ($('#repo') as HTMLInputElement).value = text;
       $('#scan')!.click();
     },
+    /** Types `text` into the filter on top of the list, as typing does: an input event. */
+    filter(text: string) {
+      const field = $('#filter') as HTMLInputElement;
+      field.value = text;
+      field.dispatchEvent(new window.Event('input', { bubbles: true }));
+    },
+    /** The highlighted parts of the left panel, as [the text they are in, the highlighted text]. */
+    marks: () => $$('#skills li mark').map((mark) => [mark.parentElement!.className, mark.textContent]),
     /** The skill names in the left panel. */
     names: () => $$('#skills li .name').map((element) => element.textContent),
     /** Clicks the `index`-th skill in the left panel. */

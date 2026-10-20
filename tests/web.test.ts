@@ -237,11 +237,83 @@ test('scanning: a progress indicator; a new scan replaces the running one', asyn
   assert.equal(page.$('#skills')!.getAttribute('aria-busy'), 'false');
 });
 
+test('the filter: a field on top of the list, X of Y next to it', async () => {
+  const page = openPage('', ALL);
+  assert.equal(page.$('#filter'), null, 'no filter before a scan');
+  page.scan('JetBrains/fixture');
+  await page.until(() => page.names().length > 0);
+  const order = page.$('#filter')!.compareDocumentPosition(page.$('#list')!);
+  assert.ok(order & page.window.Node.DOCUMENT_POSITION_FOLLOWING, 'the filter comes before the list');
+  assert.equal((page.$('#filter') as HTMLInputElement).value, '');
+  assert.equal(page.$('#count')!.textContent, '5 of 5');
+  assert.deepEqual(page.marks(), []);
+});
+
+test('the filter applies while typing: name or description, case-insensitive, matched parts highlighted', async () => {
+  const page = openPage('?repo=JetBrains/fixture', ALL);
+  await page.until(() => page.names().length > 0);
+
+  page.filter('COMMIT');
+  assert.deepEqual(page.names(), ['commits', 'commits', 'commits']);
+  assert.equal(page.$('#count')!.textContent, '3 of 5');
+  assert.deepEqual(page.marks(), [
+    ['name', 'commit'],
+    ['description', 'commit'],
+    ['description', 'Commit'],
+    ['name', 'commit'],
+    ['description', 'commit'],
+    ['name', 'commit'],
+    ['description', 'commit'],
+  ]);
+  // The text around the highlights is unchanged.
+  assert.equal(page.$$('#skills li .description')[0].textContent, 'Write commit messages in the Conventional Commits style.');
+
+  // The description alone is enough; no regular expressions: `.` is a dot.
+  page.filter('  style.  ');
+  assert.deepEqual(page.names(), ['code-style', 'commits']);
+  assert.equal(page.$('#count')!.textContent, '2 of 5');
+  assert.deepEqual(page.marks(), [
+    ['description', 'style.'],
+    ['description', 'style.'],
+  ]);
+
+  page.filter('');
+  assert.deepEqual(page.names(), ['code-style', 'commits', 'commits', 'commits', 'release-checklist']);
+  assert.equal(page.$('#count')!.textContent, '5 of 5');
+  assert.deepEqual(page.marks(), []);
+});
+
+test('the filter: nothing matches → No skills match', async () => {
+  const page = openPage('?repo=JetBrains/fixture', ALL);
+  await page.until(() => page.names().length > 0);
+  page.filter('no such skill');
+  assert.deepEqual(page.names(), []);
+  assert.equal(page.$('#list')!.textContent, 'No skills match');
+  assert.equal(page.$('#count')!.textContent, '0 of 5');
+});
+
+test('the filter keeps the selected skill, is not in the page URL, and a new scan clears it', async () => {
+  const page = openPage('?repo=JetBrains/fixture&skill=.agents/skills/commits/SKILL.md', ALL);
+  await page.until(() => page.$('#skill h1'));
+  page.filter('code');
+  assert.deepEqual(page.names(), ['code-style']);
+  assert.equal(page.$('#skill h1')!.textContent, 'commits');
+  assert.equal(page.window.location.search, '?repo=JetBrains/fixture&skill=.agents/skills/commits/SKILL.md');
+  page.filter('commit');
+  assert.equal(page.$('#skills li button')!.getAttribute('aria-current'), 'true');
+
+  page.scan('JetBrains/docs');
+  await page.until(() => page.$('#summary')?.textContent === 'JetBrains/docs · 1 skill');
+  assert.equal((page.$('#filter') as HTMLInputElement).value, '');
+  assert.equal(page.$('#count')!.textContent, '1 of 1');
+});
+
 test('no skills → No skills found', async () => {
   const page = openPage('?repo=JetBrains/empty', ALL);
   await page.until(() => page.$('#summary'));
   assert.equal(page.$('#summary')!.textContent, 'JetBrains/empty · 0 skills');
   assert.equal(page.$('#list')!.textContent, 'No skills found');
+  assert.equal(page.$('#filter'), null, 'nothing to filter');
 });
 
 test('unreachable repository → a clear message instead of the list', async () => {
