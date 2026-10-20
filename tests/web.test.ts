@@ -100,10 +100,10 @@ test('a GitHub URL is scanned as its owner/repo', async () => {
   assert.equal(page.param('repo'), 'JetBrains/fixture');
 });
 
-test('not a repository → a clear message and no request', async () => {
+test('neither a repository nor an organization → a clear message and no request', async () => {
   const page = openPage('', ALL);
   page.scan('./fixture');
-  assert.match(page.$('#status')!.textContent!, /^Not a GitHub repository: \.\/fixture/);
+  assert.match(page.$('#status')!.textContent!, /^Not a GitHub repository or organization: \.\/fixture/);
   assert.match(page.$('#status')!.textContent!, /owner\/repo/);
   assert.deepEqual(page.requests, []);
   assert.equal(page.param('repo'), null);
