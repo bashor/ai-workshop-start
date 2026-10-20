@@ -127,14 +127,25 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
 
   async function loadOrganization(org: string) {
     const controller = new AbortController();
+    /** The repositories so far, as they come. */
+    let latest: OrganizationResult | undefined;
     await scanning(org, { org }, async (current) => {
       running = controller;
       try {
         const result = await scanOrganization(org, {
           ...github(),
           signal: controller.signal,
+          update: (partial) => {
+            if (!current()) return;
+            latest = partial;
+            showOrganization(partial, { scanning: true });
+          },
           progress: (done, total) => {
-            if (current()) status.textContent = `Scanning ${org}… ${done} of ${total} ${total === 1 ? 'repository' : 'repositories'}`;
+            if (!current()) return;
+            const found = latest?.repositories.reduce((sum, repository) => sum + (repository.result?.skills.length ?? 0), 0) ?? 0;
+            status.textContent =
+              `Scanning ${org}… ${done} of ${total} ${total === 1 ? 'repository' : 'repositories'}` +
+              ` · ${found} ${found === 1 ? 'skill' : 'skills'}`;
           },
         });
         return () => showOrganization(result);
@@ -159,6 +170,8 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
       if (current()) done();
     } catch (error) {
       if (!current()) return;
+      // The list so far, an organization's, is not shown with the message.
+      results.replaceChildren();
       status.textContent =
         error instanceof AtlasError ? error.message : `Unexpected error: ${error instanceof Error ? error.message : String(error)}`;
     } finally {
@@ -176,11 +189,16 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
     select(wanted);
   }
 
-  /** `owner · N repositories`, the warnings, then each repository with the number of its skills. */
-  function showOrganization(result: OrganizationResult) {
-    organization = result;
-    shown = { org: result.organization, result };
-    status.textContent = '';
+  /**
+   * `owner · N repositories`, the warnings, then each repository with the number of its skills.
+   * While scanning: the ones so far, `…` for those not scanned yet, none clickable.
+   */
+  function showOrganization(result: OrganizationResult, { scanning = false } = {}) {
+    if (!scanning) {
+      organization = result;
+      shown = { org: result.organization, result };
+      status.textContent = '';
+    }
     const count = result.repositories.length;
     const summary = element('h2', `${result.organization} · ${count} ${count === 1 ? 'repository' : 'repositories'}`);
     summary.id = 'summary';
@@ -194,12 +212,17 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
       const button = element('button');
       button.type = 'button';
       button.dataset.repo = repository.id;
+      button.disabled = scanning;
       button.append(element('span', repository.name, 'name'));
       if (repository.result) {
         const found = repository.result.skills.length;
         const badge = element('span', String(found), 'badge');
         badge.title = `${found} ${found === 1 ? 'skill' : 'skills'}`;
         button.append(badge);
+      } else if (!repository.error) {
+        const pending = element('span', '…', 'pending');
+        pending.title = 'Scanning…';
+        button.append(pending);
       } else {
         button.append(element('span', repository.error, 'error'));
       }
