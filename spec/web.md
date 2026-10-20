@@ -34,9 +34,6 @@ Core: fetch → find → parse, the same as the CLI's. Web UI: a *thin client*.
 - GitHub API from the browser, **no token**
 - The core gives a skill's body, for the right panel
 ## Build and run
-- `npm run build` → static files in `dist/`: `index.html`, `app.js`, `style.css`
-  - Relative paths: any static host, at any path, such as GitHub Pages at `/<repo>/`
+- `npm run build` → static files, for any static host, such as GitHub Pages
 - `npm run dev` → the page on a local server, during development
-  - http://127.0.0.1:8000/; `PORT` for another port; `app.js` rebuilt on every change
-- The README: how to run the page locally, how to prepare the distribution
 - Tests: the page in *jsdom*, GitHub answering from recordings
