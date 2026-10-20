@@ -61,10 +61,11 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
 
   /** `owner/repo`, or `owner` for an organization; undefined, with a message, when the text is neither. */
   function parse(text: string, only?: 'repo' | 'org'): State | undefined {
-    const name = only === 'org' ? undefined : parseRepository(text);
-    if (name) return { repo: `${name.owner}/${name.repo}` };
+    // The organization first: `github.com/owner` would pass for `owner/repo`.
     const org = only === 'repo' ? undefined : parseOrganization(text);
     if (org) return { org: org.owner };
+    const name = only === 'org' ? undefined : parseRepository(text);
+    if (name) return { repo: `${name.owner}/${name.repo}` };
     status.textContent = `Not a GitHub repository or organization: ${text.trim()}. Type owner/repo, owner or a GitHub URL.`;
     return undefined;
   }
