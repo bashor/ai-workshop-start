@@ -15,7 +15,8 @@ build-tools-bump-gradle-api — Bumps the Gradle API version that Kotlin Gradle 
 ```
 
 The date is the last commit that changed the skill's directory, in UTC: from the GitHub API, one request
-per skill, or from `git` for a local directory.
+per skill, or from `git` for a local directory. The dates leave 20 GitHub API requests for later scans:
+past that, the skills are listed without them, with a warning.
 
 Set `GITHUB_TOKEN`, or pass `--token <token>`, for a higher GitHub rate limit: `./skill-atlas scan --token "$TOKEN" <URL>`. The
 option is used instead of `GITHUB_TOKEN`. `npm test` runs the tests.
