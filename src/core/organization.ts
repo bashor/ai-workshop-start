@@ -52,7 +52,8 @@ export async function scanOrganization(input: string, options: OrganizationOptio
     while (next < listed.length && !limited && !options.signal?.aborted) {
       const index = next++;
       try {
-        repositories[index].result = await scan(await openGitHubRepository(listed[index], options));
+        // Through the tree: code search's limit would stop the scan after about ten repositories.
+        repositories[index].result = await scan(await openGitHubRepository(listed[index], { ...options, search: false }));
       } catch (error) {
         if (error instanceof RateLimitError) limited = error;
         else if (error instanceof AtlasError) repositories[index].error = error.message;

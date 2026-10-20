@@ -7,8 +7,10 @@ export type Fetch = (url: string, init?: { headers?: Record<string, string> }) =
 
 export type GitHubOptions = {
   fetch: Fetch;
-  /** With a token, skills are found through code search; without it, through the tree. */
+  /** With a token, skills are found through code search, unless `search` is false; without it, through the tree. */
   token?: string;
+  /** Code search, with a token: about 10 requests a minute, too few for many repositories. True by default. */
+  search?: boolean;
   /** Where the token came from, for messages; the token in GITHUB_TOKEN by default. */
   tokenSource?: string;
   /** Whether messages suggest GITHUB_TOKEN; not in the page, which has none. */
@@ -84,7 +86,7 @@ async function open(github: Client, info: RepositoryInfo, options: GitHubOptions
   if (!commit) return { repository: { ...repository, commit: '' }, paths: [], warnings: [], read: async () => undefined };
   const { sha } = commit;
   const warnings: string[] = [];
-  const paths = options.token
+  const paths = options.token && (options.search ?? true)
     ? await searchPaths(github, id)
     : await treePaths(github, id, sha, warnings, options.suggestToken ?? true);
   return {
