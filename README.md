@@ -13,7 +13,8 @@ build-tools-bump-gradle-api — Bumps the Gradle API version that Kotlin Gradle 
 …
 ```
 
-Set `GITHUB_TOKEN` for a higher GitHub rate limit. `npm test` runs the tests.
+Set `GITHUB_TOKEN`, or pass `--token <token>`, for a higher GitHub rate limit: `./skill-atlas scan --token "$TOKEN" <URL>`. The
+option is used instead of `GITHUB_TOKEN`. `npm test` runs the tests.
 
 ## Web UI
 
