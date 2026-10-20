@@ -338,8 +338,9 @@ test('the README: how to run the page locally, how to prepare the distribution',
   const section = (title: RegExp) => {
     const start = readme.search(title);
     assert.ok(start >= 0, `a section ${title}`);
-    const end = readme.slice(start + 1).search(/^#{1,3} /m);
-    return end < 0 ? readme.slice(start) : readme.slice(start, start + 1 + end);
+    const body = readme.indexOf('\n', start) + 1;
+    const end = readme.slice(body).search(/^#{1,3} /m);
+    return end < 0 ? readme.slice(start) : readme.slice(start, body + end);
   };
 
   const local = section(/^#{2,3} .*locally/im);
