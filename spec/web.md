@@ -19,14 +19,22 @@ An optional **token field** next to the text field: a GitHub token, as the CLI's
 - The rate limit with a token → `GitHub rate limit reached; try again in a minute`
 ## Layout
 - **Left panel**: the skills, as the CLI lists them
-  - `owner/repo · N skills` on top; sorted by **name**; the description's *first sentence*
-  - `also in <paths>` for copies
+  - `owner/repo · N skills` on top: the repository, then `N skills` as a **badge**; the text the same, `·` not shown
+  - Sorted by **name**; the description's *first sentence*
+  - Each skill a **card**: its name, with its *folder* next to it as a tag
+    - The folder: the agent's root it is in, `.claude/skills`, or `plugins/x/.claude/skills` in a module; the full path on hover
+    - The description: at most **2 lines**, then `…`; the whole first sentence on hover
+  - `also in` for copies, then a **chip** for each copy: its folder; its full path on hover
+  - The selected skill: an **accent bar** on its left
 - **Right panel**: the selected skill's `SKILL.md`, **rendered Markdown**
   - Its name and description on top, from the front matter; the front matter *not shown* as text
   - The link to the file, pinned to the *scanned commit*
   - Relative links and images: from the skill's directory, at the scanned commit
   - Nothing selected → a hint to pick a skill
 - Click a skill → it is selected, the right panel shows it
+- **Keyboard**: on a skill, `↓` and `↑` → the next and the previous one selected and focused, as a click
+  - The page URL *replaced*, not a new history entry: back does not step through each one
+  - `↓` in the filter → the first skill; on the first skill, `↑` → the filter; on the last one, `↓` → nothing
 ## Filter
 An **edit box on top of the skills list**, below the summary and the warnings
 - Filters **while typing**: the skills whose name or shown description contain the text, *ignoring case*
