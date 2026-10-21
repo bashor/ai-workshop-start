@@ -4,3 +4,4 @@ playwright-report/
 .idea/
 dist/
 .demo/
+.pr-preview/
