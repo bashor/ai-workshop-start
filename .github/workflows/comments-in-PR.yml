@@ -1,0 +1,38 @@
+# Each new comment on a pull request sent to Air: the event's payload, as GitHub gives it, POSTed to
+# AIR_URL with `Authorization: ApiKey <AIR_TOKEN>`. Once, in the repository's settings: Secrets and
+# variables → Actions → AIR_URL and AIR_TOKEN. Comments on issues are skipped.
+name: Comments in PR
+on:
+  # A comment on the pull request's conversation; issues share the event.
+  issue_comment:
+    types: [created]
+  # A comment on the pull request's diff.
+  pull_request_review_comment:
+    types: [created]
+permissions:
+  contents: read
+jobs:
+  send:
+    if: github.event_name == 'pull_request_review_comment' || github.event.issue.pull_request
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # No checkout: the pull request's code is never run. The payload from its file, never
+      # interpolated into the script.
+      - name: Send the event to Air
+        env:
+          AIR_URL: ${{ secrets.AIR_URL }}
+          AIR_TOKEN: ${{ secrets.AIR_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          # A fork's pull request gets no secrets for its review comments.
+          if [ -z "$AIR_URL" ] || [ -z "$AIR_TOKEN" ]; then
+            echo "::warning::AIR_URL or AIR_TOKEN is not set: nothing sent"
+            exit 0
+          fi
+          curl --silent --show-error --fail-with-body --max-time 30 \
+            --request POST "$AIR_URL" \
+            --header "Authorization: ApiKey $AIR_TOKEN" \
+            --header "Content-Type: application/json" \
+            --header "X-GitHub-Event: $EVENT_NAME" \
+            --data-binary "@$GITHUB_EVENT_PATH"
