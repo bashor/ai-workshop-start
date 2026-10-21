@@ -31,6 +31,16 @@ An **Add token** button next to the text field: a GitHub token, as the CLI's `--
 - Local storage not available → the token kept for the page only, until a reload
 - GitHub rejects it → `GitHub rejected the saved token`
 - The rate limit with a token → `GitHub rate limit reached; try again in a minute`
+## Version
+A **link to the commit** the page was built from, in the page's *top right corner*
+- The text: the commit's **short hash**, its first 7 characters; the full hash on hover
+- The link: the commit on GitHub, `https://github.com/<owner>/<repo>/commit/<hash>`
+- The commit: the one `npm run build` and `npm run dev` run in, `git rev-parse HEAD`
+  - A pull request's preview: the commit GitHub Actions checks out for it, the pull request merged into its base
+- The repository: GitHub Actions' own, `GITHUB_REPOSITORY`; otherwise the `origin` remote of the checkout
+  - `https://github.com/owner/repo`, with `.git` or not, or `git@github.com:owner/repo.git`
+- No commit, not a git checkout, or no GitHub repository → *no link*, nothing else changes
+- Fixed when the page is built: the same in every browser, *no request* for it
 ## Layout
 - **Left panel**: the skills, as the CLI lists them
   - `owner/repo · N skills` on top: the repository, then `N skills` as a **badge**; the text the same, `·` not shown
@@ -102,6 +112,7 @@ Core: fetch → find → parse, the same as the CLI's. Web UI: a *thin client*.
 ## Build and run
 - `npm run build` → static files, for any static host, such as GitHub Pages
 - `npm run dev` → the page on a local server, during development
+- Both → the build's commit in the page: Version
 - Tests: the page in *jsdom*, GitHub answering from recordings
 ## Publishing
 The page on **GitHub Pages**, at `https://<owner>.github.io/<repo>/`
