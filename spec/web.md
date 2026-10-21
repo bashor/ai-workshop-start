@@ -97,9 +97,10 @@ Core: fetch → find → parse, the same as the CLI's. Web UI: a *thin client*.
 ## Publishing
 The page on **GitHub Pages**, at `https://<owner>.github.io/<repo>/`
 - **Republished after each push to `main`**: the GitHub Actions workflow `.github/workflows/pages.yml`
-  - Also by hand, from the Actions tab; *no other* branch, no pull request
+  - Also by hand, from the Actions tab, and after a pull request's preview changes (spec/preview.md); *no other* branch, no pull request's own run
 - Published only when **green**: `npm ci`, the typecheck and the tests pass, then `npm run build`; *nothing* published otherwise
 - What is published: `dist/`, the output of `npm run build`, nothing else
+  - With the pull requests' previews in `dist/.pr-preview/`, from the `gh-pages` branch: spec/preview.md
 - One publication at a time: a newer push waits, the running one is *not* cancelled halfway
 - Only the permissions it needs: reading the repository, writing Pages, the ID token Pages checks the deployment with
 - Once, in the repository's settings: *Pages → Source: GitHub Actions*
