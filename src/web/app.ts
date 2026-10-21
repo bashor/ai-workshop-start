@@ -8,9 +8,14 @@ import { scanOrganization, type OrganizationResult } from '../core/organization.
 import { scan, type ScanResult } from '../core/scan.ts';
 import { renderMarkdown } from './markdown.ts';
 
+/** A commit on GitHub: its full hash and its page. */
+export type Commit = { sha: string; url: string };
+
 export type AppOptions = {
   /** Live GitHub; with the saved token, if any. */
   fetch: Fetch;
+  /** The commit the page is built from, linked in the top right corner; no link without it. */
+  commit?: Commit;
 };
 
 /** Where the token is saved, in local storage. */
@@ -20,7 +25,7 @@ const TOKEN_KEY = 'skill-atlas.token';
 type State = { repo?: string; org?: string; skill?: string };
 
 /** Runs the page in `window`: web/index.html's elements, and its URL. */
-export function mountApp(window: Window, { fetch }: AppOptions) {
+export function mountApp(window: Window, { fetch, commit }: AppOptions) {
   const { document, history } = window;
   const find = <T extends HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
   const input = find<HTMLInputElement>('#repo');
@@ -71,6 +76,14 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
     addToken.focus();
   });
   showToken();
+
+  if (commit) {
+    const version = find<HTMLAnchorElement>('#version');
+    version.href = commit.url;
+    version.textContent = commit.sha.slice(0, 7);
+    version.title = `Built from commit ${commit.sha}`;
+    version.hidden = false;
+  }
 
   show(read(), { rescan: false });
 

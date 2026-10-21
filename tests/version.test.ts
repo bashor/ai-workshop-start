@@ -129,7 +129,7 @@ test('npm run build → the page links to the commit of this checkout', async (t
 test('npm run build → another checkout’s commit, or no link without one', async (t) => {
   const { directory, sha } = checkout(t, 'git@github.com:owner/repo.git');
   const outdir = temporary(t, 'version-other');
-  await build(outdir, buildCommit(directory, {}));
+  await build(outdir, buildCommit(directory, {}) ?? null);
   let { link, shown } = await builtLink(t, outdir);
   assert.ok(shown);
   assert.equal(link.textContent, sha.slice(0, 7));
@@ -137,7 +137,7 @@ test('npm run build → another checkout’s commit, or no link without one', as
 
   const none = join(temporary(t, 'version-none'), 'dist');
   mkdirSync(none);
-  await build(none, undefined);
+  await build(none, null);
   ({ shown } = await builtLink(t, none));
   assert.ok(!shown);
 });

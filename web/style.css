@@ -19,6 +19,10 @@ body { margin: 0; height: 100vh; display: flex; flex-direction: column; }
 #token-controls button:hover { background: color-mix(in srgb, currentColor 6%, transparent); }
 #create-token { color: var(--accent); white-space: nowrap; }
 #create-token:hover { text-decoration: none; }
+/* The build's commit, in the top right corner. */
+#version { margin-left: auto; font: 0.8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); text-decoration: none; white-space: nowrap; }
+#version:hover { color: var(--accent); text-decoration: underline; }
+#version[hidden] { display: none; }
 #scan { padding: 0.4rem 1rem; font: inherit; border: 0; border-radius: 6px; background: var(--accent); color: white; cursor: pointer; }
 
 main { flex: 1; display: flex; min-height: 0; }
