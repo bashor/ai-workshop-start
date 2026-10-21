@@ -17,6 +17,7 @@ A pull request that changes **the Web UI**: `web/`, `src/web/`, `src/core/`, `sc
   - No `gh-pages` branch yet → created, with only the preview in it
 - Published by the Pages workflow, `.github/workflows/pages.yml`, as the page of `main` (spec/web.md, *Publishing*)
   - Each publication: `dist/` of `main`, with every preview of the branch in `.pr-preview/`, *hidden* files included
+    - Whatever their size: previews of *more than a megabyte* together collected as the small ones, never held in memory at once
   - A preview published or removed → the Pages workflow run again, on the default branch; unchanged → not run
 - The Pages site from the GitHub API, else `https://<owner>.github.io/<repo>/`
   - The page's paths are relative: it works there as at the root
