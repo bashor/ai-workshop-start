@@ -66,7 +66,10 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
     else return;
     event.preventDefault();
   });
-  removeToken.addEventListener('click', () => storeToken(undefined));
+  removeToken.addEventListener('click', () => {
+    storeToken(undefined);
+    addToken.focus();
+  });
   showToken();
 
   show(read(), { rescan: false });
@@ -140,12 +143,12 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
     tokenField.value = '';
     tokenEditor.hidden = !editing;
     addToken.hidden = editing;
-    removeToken.hidden = editing || !savedToken();
+    showToken();
     if (editing) tokenField.focus();
     else addToken.focus();
   }
 
-  /** Add token, or Change token and Remove token once one is saved. */
+  /** Add token, or Change token and Remove token once one is saved; not while the token field is shown. */
   function showToken() {
     const saved = Boolean(savedToken());
     addToken.textContent = saved ? 'Change token' : 'Add token';
