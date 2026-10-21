@@ -86,4 +86,13 @@ Core: fetch → find → parse, the same as the CLI's. Web UI: a *thin client*.
 ## Build and run
 - `npm run build` → static files, for any static host, such as GitHub Pages
 - `npm run dev` → the page on a local server, during development
+## Publishing
+The page on **GitHub Pages**, at `https://<owner>.github.io/<repo>/`
+- **Republished after each push to `main`**: the GitHub Actions workflow `.github/workflows/pages.yml`
+  - Also by hand, from the Actions tab; *no other* branch, no pull request
+- Published only when **green**: `npm ci`, the typecheck and the tests pass, then `npm run build`; *nothing* published otherwise
+- What is published: `dist/`, the output of `npm run build`, nothing else
+- One publication at a time: a newer push waits, the running one is *not* cancelled halfway
+- Only the permissions it needs: reading the repository, writing Pages
+- Once, in the repository's settings: *Pages → Source: GitHub Actions*
 - Tests: the page in *jsdom*, GitHub answering from recordings
