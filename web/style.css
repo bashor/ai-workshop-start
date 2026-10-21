@@ -17,6 +17,8 @@ body { margin: 0; height: 100vh; display: flex; flex-direction: column; }
 #token { width: 12rem; padding: 0.4rem 0.6rem; font: inherit; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: inherit; }
 #token-controls button { padding: 0.4rem 0.8rem; font: inherit; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: inherit; cursor: pointer; white-space: nowrap; }
 #token-controls button:hover { background: color-mix(in srgb, currentColor 6%, transparent); }
+#create-token { color: var(--accent); white-space: nowrap; }
+#create-token:hover { text-decoration: none; }
 #scan { padding: 0.4rem 1rem; font: inherit; border: 0; border-radius: 6px; background: var(--accent); color: white; cursor: pointer; }
 
 main { flex: 1; display: flex; min-height: 0; }

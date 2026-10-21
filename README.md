@@ -29,7 +29,8 @@ repository and the skill, so it can be shared. Or type an organization, `owner` 
 `https://github.com/owner`: its repositories are listed, each with the number of its skills, as they are scanned; once
 the scan is over, click one to see them. The page calls the GitHub API with no token, unless one is saved with the
 **Add token** button next to it: like `--token`, for a higher rate limit. The token is kept in the browser's local
-storage, so it is still there after a reload; **Remove token** forgets it. It is never put in the page URL.
+storage, so it is still there after a reload; **Remove token** forgets it. It is never put in the page URL. Next to the
+token field, **Create a token** opens GitHub's page for a new fine-grained token, read-only for public repositories.
 
 ### Run locally
 
