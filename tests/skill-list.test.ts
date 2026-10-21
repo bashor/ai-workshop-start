@@ -9,6 +9,9 @@ const LONG = 'Write release notes from the merged pull requests, grouped by area
 
 const ALL: Recording = {
   ...recordFixture('JetBrains/fixture'),
+  ...record('JetBrains/copies', Object.fromEntries(
+    ['.claude', '.agents', '.github'].map((root) => [`${root}/skills/style/SKILL.md`, '---\nname: style\ndescription: Style.\n---\n# Style\n']),
+  )),
   ...record('JetBrains/docs', { '.claude/skills/guide/SKILL.md': `---\nname: guide\ndescription: ${LONG} Then post them.\n---\n# Guide\n` }),
 };
 
@@ -156,4 +159,13 @@ test('other keys do nothing', async () => {
   press(page, 'a');
   assert.equal(page.document.activeElement, buttons(page)[1]);
   assert.equal(page.param('skill'), null);
+});
+
+test('several copies: a chip for each; the text separated by `, `, not shown', async () => {
+  const page = await scanned('?repo=JetBrains/copies');
+  assert.deepEqual(page.names(), ['style']);
+  const copies = page.$('#list li .copies')!;
+  assert.deepEqual([...copies.querySelectorAll('.chip')].map((chip) => chip.textContent), ['.claude/skills', '.github/skills']);
+  assert.deepEqual([...copies.querySelectorAll('.separator')].map((separator) => separator.textContent), [', ']);
+  assert.equal(copies.textContent, 'also in .claude/skills, .github/skills');
 });
