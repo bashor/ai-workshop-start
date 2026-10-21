@@ -9,9 +9,12 @@ import { scan, type ScanResult } from '../core/scan.ts';
 import { renderMarkdown } from './markdown.ts';
 
 export type AppOptions = {
-  /** Live GitHub; with the token field's token, if any. */
+  /** Live GitHub; with the saved token, if any. */
   fetch: Fetch;
 };
+
+/** Where the token is saved, in local storage. */
+const TOKEN_KEY = 'skill-atlas.token';
 
 /** What the page URL says: `?repo=owner/repo&skill=<path>`, or `?org=owner`. */
 type State = { repo?: string; org?: string; skill?: string };
@@ -21,6 +24,9 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
   const { document, history } = window;
   const find = <T extends HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
   const input = find<HTMLInputElement>('#repo');
+  const addToken = find<HTMLButtonElement>('#add-token');
+  const removeToken = find<HTMLButtonElement>('#remove-token');
+  const tokenEditor = find('#token-editor');
   const tokenField = find<HTMLInputElement>('#token');
   const skills = find('#skills');
   const status = find('#status');
@@ -48,6 +54,21 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
     show(target, { rescan: true });
   });
   window.addEventListener('popstate', () => show(read(), { rescan: false }));
+
+  /** The token when local storage is not available: for this page only. */
+  let unsaved: string | undefined;
+  addToken.addEventListener('click', () => editToken(true));
+  find('#save-token').addEventListener('click', saveToken);
+  find('#cancel-token').addEventListener('click', () => editToken(false));
+  tokenField.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') saveToken();
+    else if (event.key === 'Escape') editToken(false);
+    else return;
+    event.preventDefault();
+  });
+  removeToken.addEventListener('click', () => storeToken(undefined));
+  showToken();
+
   show(read(), { rescan: false });
 
   function read(): State {
@@ -73,10 +94,62 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
     return undefined;
   }
 
-  /** The token field's token, read at each scan; never in the page URL, never stored. */
+  /** The saved token, read at each scan; never in the page URL. */
   function github() {
-    const token = tokenField.value.trim() || undefined;
-    return { fetch, token, tokenSource: 'the token in the token field', suggestToken: false };
+    return { fetch, token: savedToken(), tokenSource: 'the saved token', suggestToken: false };
+  }
+
+  /** Local storage, or undefined when the browser does not allow it. */
+  function storage(): Storage | undefined {
+    try {
+      return window.localStorage;
+    } catch {
+      return undefined;
+    }
+  }
+
+  function savedToken(): string | undefined {
+    try {
+      return storage()?.getItem(TOKEN_KEY) ?? unsaved;
+    } catch {
+      return unsaved;
+    }
+  }
+
+  /** Saves `token`, or forgets the saved one; in local storage, or for this page only. */
+  function storeToken(token: string | undefined) {
+    unsaved = undefined;
+    try {
+      const saved = storage();
+      if (!saved) throw new Error('no local storage');
+      if (token) saved.setItem(TOKEN_KEY, token);
+      else saved.removeItem(TOKEN_KEY);
+    } catch {
+      unsaved = token;
+    }
+    showToken();
+  }
+
+  function saveToken() {
+    storeToken(tokenField.value.trim() || undefined);
+    editToken(false);
+  }
+
+  /** The token field instead of the buttons, empty and focused; or the buttons again. */
+  function editToken(editing: boolean) {
+    tokenField.value = '';
+    tokenEditor.hidden = !editing;
+    addToken.hidden = editing;
+    removeToken.hidden = editing || !savedToken();
+    if (editing) tokenField.focus();
+    else addToken.focus();
+  }
+
+  /** Add token, or Change token and Remove token once one is saved. */
+  function showToken() {
+    const saved = Boolean(savedToken());
+    addToken.textContent = saved ? 'Change token' : 'Add token';
+    removeToken.hidden = !saved || !tokenEditor.hidden;
   }
 
   function show(state: State, { rescan }: { rescan: boolean }) {
