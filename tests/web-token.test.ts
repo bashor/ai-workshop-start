@@ -100,6 +100,34 @@ test('Cancel or Escape → nothing changed, the field gone', () => {
   }
 });
 
+test('the token editor → a Create a token link to a new fine-grained token, read-only for public repositories, in a new tab', () => {
+  const page = openPage('', EXAMPLE);
+  assert.equal(page.shown('#create-token'), false, 'not shown before Add token');
+  page.$('#add-token')!.click();
+  assert.equal(page.shown('#create-token'), true);
+  const link = page.$('#token-editor #create-token') as HTMLAnchorElement;
+  assert.equal(link.tagName, 'A');
+  assert.equal(link.textContent, 'Create a token');
+  const url = new URL(link.href);
+  assert.equal(url.origin + url.pathname, 'https://github.com/settings/personal-access-tokens/new');
+  assert.equal(url.searchParams.get('name'), 'Skill Atlas');
+  assert.ok(url.searchParams.get('description'));
+  assert.ok(url.searchParams.get('name')!.length <= 40);
+  // Public repositories, read-only, is GitHub's default: no permission or owner asked for.
+  assert.deepEqual([...url.searchParams.keys()].sort(), ['description', 'name']);
+  assert.equal(link.target, '_blank');
+  assert.match(link.rel, /noopener/);
+  assert.match(link.rel, /noreferrer/);
+
+  link.click();
+  assert.deepEqual(controls(page), ['field', 'Save', 'Cancel'], 'the field still shown');
+  assert.equal(page.window.localStorage.getItem(TOKEN_KEY), null);
+  assert.deepEqual(page.requests, []);
+
+  page.$('#cancel-token')!.click();
+  assert.equal(page.shown('#create-token'), false, 'gone with the field');
+});
+
 test('an empty token, or only spaces → nothing saved, a saved one forgotten, the skills found through the tree', async () => {
   for (const text of ['', '   ']) {
     const page = openPage('', EXAMPLE);
