@@ -27,8 +27,12 @@ export function buildCommit(cwd = ROOT, env: NodeJS.ProcessEnv = process.env): C
   if (!sha) return undefined;
   let repository = env.GITHUB_REPOSITORY ? `${env.GITHUB_SERVER_URL || 'https://github.com'}/${env.GITHUB_REPOSITORY}` : undefined;
   if (!repository) {
-    // git@github.com:owner/repo.git as github.com/owner/repo.git.
-    const name = parseGitHubUrl(git('remote', 'get-url', 'origin')?.replace(/^git@github\.com:/i, 'github.com/') ?? '');
+    // git@github.com:owner/repo.git and ssh://git@github.com/owner/repo.git as github.com/owner/repo.git;
+    // https://user:token@github.com/owner/repo without the credentials.
+    const remote = git('remote', 'get-url', 'origin')
+      ?.replace(/^(?:ssh:\/\/)?git@github\.com[:/]/i, 'github.com/')
+      .replace(/^(https?:\/\/)[^@/]+@/i, '$1');
+    const name = parseGitHubUrl(remote ?? '');
     if (!name) return undefined;
     repository = `https://github.com/${name.owner}/${name.repo}`;
   }
