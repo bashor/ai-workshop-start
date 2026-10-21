@@ -2,15 +2,15 @@
 // answering from a fake, and the workflows' triggers from their YAML.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { type Dirent, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative, sep } from 'node:path';
 import { test, type TestContext } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { JSDOM } from 'jsdom';
 import { parse } from 'yaml';
 import { build } from '../scripts/build.ts';
-import { comment, commentBody, MARKER, pagesSite, publish, remove } from '../scripts/preview.ts';
+import { collect, comment, commentBody, dispatch, MARKER, pagesSite, publish, remove } from '../scripts/preview.ts';
 import { mountApp } from '../src/web/app.ts';
 import { replay } from '../src/core/replay.ts';
 import { recordFixture } from './web-helpers.ts';
@@ -59,6 +59,13 @@ function pages(origin: string): Record<string, string> | undefined {
   return files;
 }
 
+/** Every file under `path`, relative to it, sorted. */
+const files = (path: string) =>
+  (readdirSync(path, { recursive: true, withFileTypes: true }) as Dirent[])
+    .filter((entry) => entry.isFile())
+    .map((entry) => relative(path, join(entry.parentPath, entry.name)).split(sep).join('/'))
+    .toSorted();
+
 const head = (origin: string) => git(origin, 'rev-parse', 'refs/heads/gh-pages');
 
 /** Puts these files at the root of the remote's gh-pages branch, as another publisher would. */
@@ -78,12 +85,11 @@ function pushPages(base: string, origin: string, files: Record<string, string>) 
   git(other, 'push', '--quiet', 'origin', 'gh-pages');
 }
 
-test('a preview: dist/ in .pr-preview/<N>/ of a new gh-pages branch, with .nojekyll at the root', (t) => {
+test('a preview: dist/ in .pr-preview/<N>/ of a new gh-pages branch', (t) => {
   const { base, origin, clone } = repositories(t);
   const dist = directory(base, 'dist', { 'index.html': '<p>page</p>', 'app.js': 'app()', 'assets/a.css': 'a{}' });
   assert.equal(publish({ cwd: clone, pr: 7, dist, sha: SHA }), 'published');
   assert.deepEqual(pages(origin), {
-    '.nojekyll': '',
     '.pr-preview/7/index.html': '<p>page</p>',
     '.pr-preview/7/app.js': 'app()',
     '.pr-preview/7/assets/a.css': 'a{}',
@@ -98,11 +104,10 @@ test('a preview: dist/ in .pr-preview/<N>/ of a new gh-pages branch, with .nojek
 
 test('a new push: the preview replaced, the files gone from dist/ gone; the rest of gh-pages kept', (t) => {
   const { base, origin, clone } = repositories(t);
-  pushPages(base, origin, { 'index.html': 'main', '.pr-preview/3/index.html': 'three', '.nojekyll': '' });
+  pushPages(base, origin, { 'index.html': 'main', '.pr-preview/3/index.html': 'three' });
   publish({ cwd: clone, pr: 7, dist: directory(base, 'first', { 'index.html': 'one', 'old.js': 'old' }), sha: SHA });
   assert.equal(publish({ cwd: clone, pr: 7, dist: directory(base, 'second', { 'index.html': 'two' }), sha: SHA }), 'published');
   assert.deepEqual(pages(origin), {
-    '.nojekyll': '',
     'index.html': 'main',
     '.pr-preview/3/index.html': 'three',
     '.pr-preview/7/index.html': 'two',
@@ -134,7 +139,6 @@ test('someone else pushes to gh-pages meanwhile: published again on top, no push
   assert.equal(result, 'published');
   assert.equal(raced, 2);
   assert.deepEqual(pages(origin), {
-    '.nojekyll': '',
     'index.html': 'main',
     '.pr-preview/7/index.html': 'seven',
     '.pr-preview/8/index.html': 'eight',
@@ -146,7 +150,7 @@ test('closed or merged: the preview removed, the rest of gh-pages kept', (t) => 
   pushPages(base, origin, { 'index.html': 'main', '.pr-preview/3/index.html': 'three' });
   publish({ cwd: clone, pr: 7, dist: directory(base, 'dist', { 'index.html': 'seven', 'a/b.js': 'b' }), sha: SHA });
   assert.equal(remove({ cwd: clone, pr: 7 }), 'removed');
-  assert.deepEqual(pages(origin), { '.nojekyll': '', 'index.html': 'main', '.pr-preview/3/index.html': 'three' });
+  assert.deepEqual(pages(origin), { 'index.html': 'main', '.pr-preview/3/index.html': 'three' });
 });
 
 test('closed with no preview: nothing, no commit; no gh-pages branch → none created', (t) => {
@@ -157,6 +161,25 @@ test('closed with no preview: nothing, no commit; no gh-pages branch → none cr
   const before = head(origin);
   assert.equal(remove({ cwd: clone, pr: 7 }), 'absent');
   assert.equal(head(origin), before);
+});
+
+test('the Pages workflow: every preview of gh-pages into dist/.pr-preview/, nothing else of the branch', (t) => {
+  const { base, origin, clone } = repositories(t);
+  pushPages(base, origin, { 'index.html': 'old main', '.pr-preview/3/index.html': 'three', '.pr-preview/7/a/b.js': 'b' });
+  const dist = directory(base, 'dist', { 'index.html': 'main', 'app.js': 'app()' });
+  assert.deepEqual(collect({ cwd: clone, into: dist }), [3, 7]);
+  assert.deepEqual(files(dist), ['.pr-preview/3/index.html', '.pr-preview/7/a/b.js', 'app.js', 'index.html']);
+  assert.equal(readFileSync(join(dist, 'index.html'), 'utf8'), 'main');
+  assert.equal(readFileSync(join(dist, '.pr-preview/7/a/b.js'), 'utf8'), 'b');
+});
+
+test('the Pages workflow: no gh-pages branch, or no previews on it → dist/ as it is', (t) => {
+  const { base, origin, clone } = repositories(t);
+  const dist = directory(base, 'dist', { 'index.html': 'main' });
+  assert.deepEqual(collect({ cwd: clone, into: dist }), []);
+  pushPages(base, origin, { 'other.txt': 'other' });
+  assert.deepEqual(collect({ cwd: clone, into: dist }), []);
+  assert.deepEqual(files(dist), ['index.html']);
 });
 
 /** A GitHub API that answers `routes` by `METHOD url`; every request is in `requests`. */
@@ -176,18 +199,21 @@ function fakeGitHub(routes: Record<string, (body: unknown) => { status: number; 
 
 const API = 'https://api.github.com/repos/bashor/ai-workshop-start';
 
-test('the URL: the Pages site from the GitHub API, ready when it serves gh-pages at its root', async () => {
-  const site = (source: unknown, build_type = 'legacy') =>
-    fakeGitHub({ [`GET ${API}/pages`]: () => ({ status: 200, body: { html_url: 'https://atlas.example.com/', build_type, source } }) });
-  const ready = site({ branch: 'gh-pages', path: '/' });
+test('the URL: the Pages site from the GitHub API, ready when it is published by GitHub Actions', async () => {
+  const site = (build_type: string, html_url = 'https://atlas.example.com/') =>
+    fakeGitHub({ [`GET ${API}/pages`]: () => ({ status: 200, body: { html_url, build_type, source: { branch: 'main', path: '/' } } }) });
+  const ready = site('workflow');
   assert.deepEqual(await pagesSite('bashor/ai-workshop-start', { fetch: ready.fetch, token: 'secret' }), {
     url: 'https://atlas.example.com/',
     ready: true,
   });
   assert.equal(ready.requests[0].authorization, 'Bearer secret');
-  for (const other of [site({ branch: 'main', path: '/' }), site({ branch: 'gh-pages', path: '/docs' }), site(null, 'workflow')]) {
-    assert.deepEqual(await pagesSite('bashor/ai-workshop-start', { fetch: other.fetch }), { url: 'https://atlas.example.com/', ready: false });
-  }
+  assert.deepEqual(await pagesSite('bashor/ai-workshop-start', { fetch: site('legacy').fetch }), { url: 'https://atlas.example.com/', ready: false });
+  // A custom domain, without the trailing slash.
+  assert.deepEqual(await pagesSite('bashor/ai-workshop-start', { fetch: site('workflow', 'http://zal.im/ai-workshop-start').fetch }), {
+    url: 'http://zal.im/ai-workshop-start/',
+    ready: true,
+  });
 });
 
 test('the URL: no Pages site → https://<owner>.github.io/<repo>/, not ready', async () => {
@@ -205,14 +231,12 @@ test('the comment: the URL and the commit; how to set up Pages when it is not; r
   assert.ok(published.startsWith(MARKER));
   assert.match(published, /https:\/\/bashor\.github\.io\/ai-workshop-start\/\.pr-preview\/7\//);
   assert.match(published, /5ab6270/);
+  assert.match(published, /once the Pages workflow has run/);
   assert.doesNotMatch(published, /Settings/);
 
   const notReady = commentBody({ state: 'published', pr: 7, site: { url, ready: false }, sha: SHA });
   assert.match(notReady, /\.pr-preview\/7\//);
-  assert.match(notReady, /Settings → Pages/);
-  assert.match(notReady, /Deploy from a branch/);
-  assert.match(notReady, /`gh-pages`/);
-  assert.match(notReady, /`\/ \(root\)`/);
+  assert.match(notReady, /Settings → Pages → Source: GitHub Actions/);
 
   const removed = commentBody({ state: 'removed', pr: 7, site: { url, ready: true }, sha: SHA });
   assert.ok(removed.startsWith(MARKER));
@@ -254,6 +278,15 @@ test('the comment found among many: every page of comments looked at', async () 
   assert.deepEqual(github.requests.at(-1), { method: 'PATCH', url: `${API}/issues/comments/500`, body: { body: `${MARKER}\nnew` }, authorization: undefined });
 });
 
+test('a preview published or removed: the Pages workflow run again, on the default branch', async () => {
+  const github = fakeGitHub({ [`POST ${API}/actions/workflows/pages.yml/dispatches`]: () => ({ status: 204 }) });
+  await dispatch('bashor/ai-workshop-start', 'main', { fetch: github.fetch, token: 'secret' });
+  assert.deepEqual(github.requests, [
+    { method: 'POST', url: `${API}/actions/workflows/pages.yml/dispatches`, body: { ref: 'main' }, authorization: 'Bearer secret' },
+  ]);
+  await assert.rejects(dispatch('bashor/ai-workshop-start', 'main', { fetch: fakeGitHub({}).fetch }), /404/);
+});
+
 type Workflow = {
   on: { pull_request: { types: string[]; paths?: string[] } };
   permissions: Record<string, string>;
@@ -282,7 +315,9 @@ test('published for a pull request that changes the Web UI: opened, reopened, a 
   assert.match(runs, /npm ci/);
   assert.match(runs, /npm run build/);
   assert.match(runs, /node scripts\/preview\.ts publish/);
-  assert.deepEqual(preview.permissions, { contents: 'write', 'pull-requests': 'write', pages: 'read' });
+  const script = job.steps.find((step) => step.run?.includes('preview.ts publish'))!;
+  assert.equal(script.env?.DEFAULT_BRANCH, '${{ github.event.repository.default_branch }}');
+  assert.deepEqual(preview.permissions, { contents: 'write', 'pull-requests': 'write', pages: 'read', actions: 'write' });
 });
 
 test('removed when closed or merged, whatever its files; one run at a time for a pull request, the last one wins', () => {
@@ -295,7 +330,8 @@ test('removed when closed or merged, whatever its files; one run at a time for a
   // The script of the default branch: a closed pull request's own may be gone.
   const checkout = job.steps.find((step) => step.uses?.startsWith('actions/checkout'))!;
   assert.equal(checkout.with?.ref, '${{ github.event.repository.default_branch }}');
-  assert.match(job.steps.map((step) => step.run ?? '').join('\n'), /node scripts\/preview\.ts remove/);
+  const script = job.steps.find((step) => step.run?.includes('preview.ts remove'))!;
+  assert.equal(script.env?.DEFAULT_BRANCH, '${{ github.event.repository.default_branch }}');
   assert.deepEqual(removal.permissions, preview.permissions);
   // The same group: closing cancels a preview still being published.
   assert.equal(preview.concurrency.group, removal.concurrency.group);
@@ -328,4 +364,17 @@ test('the built page works in .pr-preview/<N>/: the page URL keeps its path', as
 
 test('.pr-preview/ in .gitignore: a preview put into a checkout by hand is never committed', () => {
   assert.equal(git(ROOT, 'check-ignore', '--no-index', '.pr-preview/7/index.html'), '.pr-preview/7/index.html');
+});
+
+test('the Pages workflow: the previews into dist/ after the build, hidden files uploaded too', () => {
+  const pagesWorkflow = workflow('pages.yml');
+  const list = Object.values(pagesWorkflow.jobs).flatMap((job) => job.steps);
+  const build = list.findIndex((step) => step.run === 'npm run build');
+  const collecting = list.findIndex((step) => step.run === 'node scripts/preview.ts collect dist');
+  const upload = list.findIndex((step) => step.uses?.startsWith('actions/upload-pages-artifact'));
+  assert.ok(build !== -1 && build < collecting && collecting < upload, `${build} < ${collecting} < ${upload}`);
+  // .pr-preview/ starts with a `.`: left out of the artifact otherwise.
+  assert.equal(list[upload].with?.['include-hidden-files'], true);
+  // The workflow the preview runs again.
+  assert.ok(Object.hasOwn(pagesWorkflow.on, 'workflow_dispatch'));
 });
