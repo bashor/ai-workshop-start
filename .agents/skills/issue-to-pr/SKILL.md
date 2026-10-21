@@ -9,8 +9,9 @@ When the issue leaves a decision open, ask in #bot31 channel (ID: C0CAVA7BBEJ), 
 After the PR is created, watch it for new comments and reviews without spending tokens:
 run a background shell loop that polls `gh pr view <n> --json comments,reviews,state`
 every 10s and exits when the output changes or after 90 min without changes.
-When the loop exits on a change, address the new comments by replying or fixing
-concerns, then restart the watcher (the 90 min start over).
+When the loop exits on a change, first make sure no one working on it and reply "Working on it...", 
+then address the new comments by replying or fixing concerns,
+then restart the watcher (the 90 min start over).
 
 Stop watching once the PR is merged or closed, or after 90 min with no response.
 
