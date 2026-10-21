@@ -35,6 +35,7 @@ export function mountApp(window: Window, { fetch, commit }: AppOptions) {
   const tokenField = find<HTMLInputElement>('#token');
   const skills = find('#skills');
   const status = find('#status');
+  const progressBar = find<HTMLProgressElement>('#progress');
   const results = find('#results');
   const panel = find('#skill');
 
@@ -207,6 +208,7 @@ export function mountApp(window: Window, { fetch, commit }: AppOptions) {
     running?.abort();
     running = undefined;
     skills.setAttribute('aria-busy', 'false');
+    showProgress(undefined);
     return ++scans;
   }
 
@@ -223,6 +225,7 @@ export function mountApp(window: Window, { fetch, commit }: AppOptions) {
     let latest: OrganizationResult | undefined;
     await scanning(org, { org }, async (current) => {
       running = controller;
+      showProgress({});
       try {
         const result = await scanOrganization(org, {
           ...github(),
@@ -236,6 +239,7 @@ export function mountApp(window: Window, { fetch, commit }: AppOptions) {
           progress: (done, total) => {
             if (!current() || controller.signal.aborted) return;
             const found = latest?.repositories.reduce((sum, repository) => sum + (repository.result?.skills.length ?? 0), 0) ?? 0;
+            showProgress({ done, total });
             status.textContent =
               `Scanning ${org}… ${done} of ${total} ${total === 1 ? 'repository' : 'repositories'}` +
               ` · ${found} ${found === 1 ? 'skill' : 'skills'}`;
@@ -271,7 +275,20 @@ export function mountApp(window: Window, { fetch, commit }: AppOptions) {
       if (current()) {
         running = undefined;
         skills.setAttribute('aria-busy', 'false');
+        showProgress(undefined);
       }
+    }
+  }
+
+  /** The progress bar of an organization's scan: none, indeterminate until its repositories are listed, then their share scanned. */
+  function showProgress(progress: { done?: number; total?: number } | undefined) {
+    progressBar.hidden = !progress;
+    if (progress?.total) {
+      progressBar.max = progress.total;
+      progressBar.value = progress.done ?? 0;
+    } else {
+      progressBar.removeAttribute('value');
+      progressBar.removeAttribute('max');
     }
   }
 

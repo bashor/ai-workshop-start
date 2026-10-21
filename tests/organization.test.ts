@@ -314,3 +314,61 @@ test('as they come: an unexpected error → its message instead of the list; the
   assert.equal(page.$('#summary'), null);
   assert.equal(page.$$('#skills li').length, 0);
 });
+
+/** The progress bar on the left: none, indeterminate, or `value of max`. */
+function bar(page: ReturnType<typeof openPage>) {
+  const progress = page.$('#progress') as HTMLProgressElement | null;
+  if (!progress || progress.hidden) return 'none';
+  return progress.hasAttribute('value') ? `${progress.value} of ${progress.max}` : 'indeterminate';
+}
+
+test('a progress bar: indeterminate until every repository is listed, then a step for each one scanned or failed', async () => {
+  const recording: Recording = {
+    ...recordOrganization('Acme', ['a', 'broken', 'docs', 'empty', 'fixture']),
+    ...record('Acme/a', { '.claude/skills/a/SKILL.md': SKILL('a') }),
+    ...record('Acme/docs', { '.claude/skills/guide/SKILL.md': SKILL('guide') }),
+    ...record('Acme/empty', { 'README.md': '# Nothing here\n' }),
+    ...recordFixture('Acme/fixture'),
+    'https://api.github.com/repos/Acme/broken/commits/main': { status: 500, body: { message: 'Server Error' } },
+  };
+  assert.equal(bar(openPage('', recording)), 'none');
+
+  // The list of repositories answers only once released, then Acme/a.
+  const list = holding(recording, '/orgs/Acme/repos');
+  const repository = holding(recording, 'Acme/a/');
+  const fetch = async (url: string, init?: { headers?: Record<string, string> }) =>
+    url.includes('/orgs/Acme/repos') ? list.fetch(url, init) : repository.fetch(url, init);
+  const held = openPage('?org=Acme', recording, { fetch });
+  assert.equal(bar(held), 'indeterminate');
+  list.release();
+  await held.until(() => bar(held) === '4 of 5', 'four repositories scanned, the failed one among them');
+  repository.release();
+  await scanned(held);
+  assert.equal(bar(held), 'none');
+});
+
+test('a progress bar: none for a repository, nor after a failed or a replaced scan', async () => {
+  const page = openPage('?repo=Acme/fixture', recordFixture('Acme/fixture'));
+  assert.equal(page.$('#skills')!.getAttribute('aria-busy'), 'true');
+  assert.equal(bar(page), 'none');
+  await page.until(() => summary(page) === 'Acme/fixture · 5 skills', 'the repository');
+  assert.equal(bar(page), 'none');
+
+  const limited: Recording = {
+    'https://api.github.com/orgs/Acme/repos?per_page=100&page=1': { status: 403, body: { message: 'API rate limit exceeded for 192.0.2.1.' } },
+  };
+  const failed = openPage('?org=Acme', limited);
+  await failed.until(() => failed.$('#status')!.textContent === 'GitHub rate limit reached; try again later');
+  assert.equal(bar(failed), 'none');
+
+  const recording: Recording = { ...ACME, ...record('Acme/solo', { '.claude/skills/solo/SKILL.md': SKILL('solo') }) };
+  const { fetch, release } = holding(recording, 'Acme/zeta/');
+  const replaced = openPage('?org=Acme', recording, { fetch });
+  await replaced.until(() => bar(replaced) === '3 of 4', 'the progress');
+  replaced.scan('Acme/solo');
+  assert.equal(bar(replaced), 'none');
+  release();
+  await replaced.until(() => summary(replaced) === 'Acme/solo · 1 skill', 'the repository');
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(bar(replaced), 'none');
+});
