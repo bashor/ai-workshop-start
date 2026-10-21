@@ -17,6 +17,8 @@ body { margin: 0; height: 100vh; display: flex; flex-direction: column; }
 #token { width: 12rem; padding: 0.4rem 0.6rem; font: inherit; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: inherit; }
 #token-controls button { padding: 0.4rem 0.8rem; font: inherit; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: inherit; cursor: pointer; white-space: nowrap; }
 #token-controls button:hover { background: color-mix(in srgb, currentColor 6%, transparent); }
+#create-token { color: var(--accent); white-space: nowrap; }
+#create-token:hover { text-decoration: none; }
 /* The build's commit, in the top right corner. */
 #version { margin-left: auto; font: 0.8rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); text-decoration: none; white-space: nowrap; }
 #version:hover { color: var(--accent); text-decoration: underline; }
