@@ -23,7 +23,7 @@ An **Add token** button next to the text field: a GitHub token, as the CLI's `--
 - The saved token → the token for the **GitHub API requests** of the scans, a repository's or an organization's
   - Read at each scan: a changed token → used from the next scan on
   - The files *through the tree*, as without a token, **not** code search: a repository's and an organization's repositories'
-    - GitHub's code search answers with no CORS header: the browser blocks it, `Cannot reach GitHub`
+    - GitHub's code search answers with no CORS header: the browser would block it, `Cannot reach GitHub: Failed to fetch`
     - And its limit is about 10 requests a minute
   - A tree too large to list at once → only the skill roots, with the warning, as without a token
 - *Never* in the page URL: a shared URL holds no token
