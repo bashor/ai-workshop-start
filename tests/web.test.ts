@@ -83,7 +83,7 @@ test('owner/repo → the skills on the left, as the CLI lists them, and ?repo= i
     ],
   );
   // Copies: listed once, also in the other paths.
-  assert.equal(page.$('#skills li .copies')!.textContent, 'also in .github/skills/code-style/SKILL.md');
+  assert.equal(page.$('#skills li .copies')!.textContent, 'also in .github/skills');
   assert.equal(page.$$('#skills li .copies').length, 1);
   // Not real: not listed.
   assert.doesNotMatch(page.$('#skills')!.textContent!, /shipped|tested|linked/);
