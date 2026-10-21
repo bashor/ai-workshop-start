@@ -3,7 +3,7 @@
 // A thin client over the core, like the CLI. The page URL holds what is shown, so it can be shared.
 import { AtlasError } from '../core/errors.ts';
 import { openGitHub, parseOrganization, parseRepository, type Fetch } from '../core/github.ts';
-import { firstSentence, skillLink, type Skill } from '../core/model.ts';
+import { firstSentence, formatDate, skillLink, type Skill } from '../core/model.ts';
 import { scanOrganization, type OrganizationResult } from '../core/organization.ts';
 import { scan, type ScanResult } from '../core/scan.ts';
 import { renderMarkdown } from './markdown.ts';
@@ -367,6 +367,7 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
         const shownDescription = highlighted(description, text, 'description');
         shownDescription.title = description;
         button.append(head, shownDescription);
+        if (skill.updated) button.append(updated(skill.updated, 'updated'));
         if (skill.copies.length > 0) {
           const copies = element('span', 'also in ', 'copies');
           for (const [index, copy] of skill.copies.entries()) {
@@ -467,10 +468,19 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
     source.rel = 'noopener noreferrer';
     const header = element('header');
     header.append(element('h1', skill.name), element('p', skill.description, 'description'), source);
+    if (skill.updated) header.append(updated(skill.updated, 'Updated'));
     const body = element('div', undefined, 'markdown');
     // Safe: renderMarkdown shows raw HTML as text.
     body.innerHTML = renderMarkdown(repository, skill);
     panel.replaceChildren(header, body);
+  }
+
+  /** `updated <day>`, the exact time on hover. */
+  function updated(time: string, word: 'updated' | 'Updated') {
+    const created = element('time', `${word} ${formatDate(time)}`, 'updated');
+    created.dateTime = time;
+    created.title = time;
+    return created;
   }
 
   function element<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, className?: string) {

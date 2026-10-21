@@ -1,7 +1,7 @@
 # Skill Atlas
 
 Every agent skill in a repository: `./skill-atlas scan` finds each `SKILL.md` and prints its name,
-description and link.
+description, link and when it was last updated.
 
 ```console
 $ npm ci
@@ -10,8 +10,13 @@ JetBrains/kotlin · 6 skills
 …
 build-tools-bump-gradle-api — Bumps the Gradle API version that Kotlin Gradle plugins are compiled against in the Kotlin compiler repository.
   https://github.com/JetBrains/kotlin/blob/5ab6270ab772d113e8ad52ebfcaa0109c522ae00/.claude/skills/build-tools-bump-gradle-api/SKILL.md
+  updated 2026-10-14
 …
 ```
+
+The date is the last commit that changed the skill's directory, in UTC: from the GitHub API, one request
+per skill, or from `git` for a local directory. The dates leave 20 GitHub API requests for later scans:
+past that, the skills are listed without them, with a warning.
 
 Set `GITHUB_TOKEN`, or pass `--token <token>`, for a higher GitHub rate limit: `./skill-atlas scan --token "$TOKEN" <URL>`. The
 option is used instead of `GITHUB_TOKEN`. `npm test` runs the tests.

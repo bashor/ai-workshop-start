@@ -42,6 +42,8 @@ const AT_ONCE = 4;
 export async function scanOrganization(input: string, options: OrganizationOptions): Promise<OrganizationResult> {
   const name = parseOrganization(input);
   if (!name) throw new AtlasError(`Not a GitHub organization: ${input}`);
+  // One count of the requests left for every repository: each one's dates leave the reserve for all.
+  options = { ...options, rateLimit: options.rateLimit ?? {} };
   const repositories: RepositoryScan[] = [];
   const update = () =>
     options.update?.({ organization: name.owner, url: `https://github.com/${name.owner}`, repositories: sortRepositories(repositories), warnings: [] });

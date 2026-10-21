@@ -15,7 +15,15 @@ export type GitHubOptions = {
   tokenSource?: string;
   /** Whether messages suggest GITHUB_TOKEN; not in the page, which has none. */
   suggestToken?: boolean;
+  /** The count of API requests left, shared by every client given the same one: an organization's repositories. */
+  rateLimit?: RateLimit;
 };
+
+/** GitHub's core API requests left: its last X-RateLimit-Remaining, less the requests sent since; unknown at first. */
+export type RateLimit = { remaining?: number };
+
+/** The API requests the dates leave for the scans after this one: without a token, GitHub allows 60 an hour. */
+const RESERVE = 20;
 
 const API = 'https://api.github.com';
 const RAW = 'https://raw.githubusercontent.com';
@@ -88,7 +96,9 @@ async function open(github: Client, info: RepositoryInfo, options: GitHubOptions
     throw error;
   });
   // No commit yet, so no files and no skills.
-  if (!commit) return { repository: { ...repository, commit: '' }, paths: [], warnings: [], read: async () => undefined };
+  if (!commit) {
+    return { repository: { ...repository, commit: '' }, paths: [], warnings: [], read: async () => undefined, updated: async () => undefined };
+  }
   const { sha } = commit;
   const warnings: string[] = [];
   const paths = options.token && (options.search ?? true)
@@ -99,7 +109,17 @@ async function open(github: Client, info: RepositoryInfo, options: GitHubOptions
     paths,
     warnings,
     read: (path) => github.raw(`${RAW}/${id}/${sha}/${encodePath(path)}`),
+    updated: (directory) => lastUpdated(github, id, sha, directory),
   };
+}
+
+type Commit = { commit: { committer: { date: string } | null } };
+
+/** The committer's date of the last commit that changed the directory, up to `sha`. */
+async function lastUpdated(github: Client, id: string, sha: string, directory: string): Promise<string | undefined> {
+  const url = `${API}/repos/${id}/commits?sha=${sha}&path=${encodePath(directory)}&per_page=1`;
+  const commits = await github.json<Commit[]>(url, undefined, { reserve: RESERVE });
+  return commits[0]?.commit.committer?.date;
 }
 
 /** Code search looks at the whole default branch, 100 results a page. */
@@ -157,7 +177,7 @@ type Client = ReturnType<typeof client>;
 /** A repository without a commit: GitHub answers 409 for its commits. */
 class EmptyRepositoryError extends AtlasError {}
 
-function client({ fetch, token, tokenSource = 'the token in GITHUB_TOKEN', suggestToken = true }: GitHubOptions) {
+function client({ fetch, token, tokenSource = 'the token in GITHUB_TOKEN', suggestToken = true, rateLimit = {} }: GitHubOptions) {
   const headers: Record<string, string> = { Accept: 'application/vnd.github+json' };
   if (token) headers.Authorization = `Bearer ${token}`;
   const answers = new Map<string, Promise<unknown>>(); // the root tree is asked for once per skill root
@@ -171,7 +191,14 @@ function client({ fetch, token, tokenSource = 'the token in GITHUB_TOKEN', sugge
   }
 
   async function request(url: string, notFound: string): Promise<unknown> {
+    // Counted as it is sent, before any answer: requests sent at the same time see each other.
+    const search = url.startsWith(`${API}/search/`);
+    if (!search && rateLimit.remaining !== undefined) rateLimit.remaining--;
     const response = await get(url, { headers });
+    const remaining = Number.parseInt(response.headers.get('x-ratelimit-remaining') ?? '', 10);
+    if (response.headers.get('x-ratelimit-resource') === 'core' && !Number.isNaN(remaining)) {
+      rateLimit.remaining = Math.min(rateLimit.remaining ?? remaining, remaining);
+    }
     if (response.ok) return response.json();
     const body: unknown = await response.json().catch(() => undefined);
     const message = (body as { message?: unknown } | undefined)?.message;
@@ -186,8 +213,11 @@ function client({ fetch, token, tokenSource = 'the token in GITHUB_TOKEN', sugge
   }
 
   return {
-    /** A GitHub API answer; `notFound` explains a 404. */
-    json<T>(url: string, notFound = `Not found on GitHub: ${url}`): Promise<T> {
+    /** A GitHub API answer; `notFound` explains a 404. Not asked for once `reserve` requests or fewer are left. */
+    json<T>(url: string, notFound = `Not found on GitHub: ${url}`, { reserve }: { reserve?: number } = {}): Promise<T> {
+      if (!answers.has(url) && reserve !== undefined && rateLimit.remaining !== undefined && rateLimit.remaining <= reserve) {
+        return Promise.reject(new AtlasError(`GitHub rate limit nearly reached; ${!token && suggestToken ? 'set GITHUB_TOKEN' : 'try again later'}`));
+      }
       if (!answers.has(url)) answers.set(url, request(url, notFound));
       return answers.get(url) as Promise<T>;
     },

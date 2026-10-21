@@ -6,7 +6,7 @@ import { JSDOM } from 'jsdom';
 import type { Fetch } from '../src/core/github.ts';
 import { replay, type Recording } from '../src/core/replay.ts';
 import { mountApp } from '../src/web/app.ts';
-import { FIXTURE } from './helpers.ts';
+import { FIXTURE, lastCommit } from './helpers.ts';
 
 export const PAGE = fileURLToPath(new URL('../web/index.html', import.meta.url));
 export const ORIGIN = 'https://atlas.test/';
@@ -14,11 +14,17 @@ export const ORIGIN = 'https://atlas.test/';
 /** The commit every recorded repository is at. */
 export const COMMIT = '5ab6270ab772d113e8ad52ebfcaa0109c522ae00';
 
+/** When every recorded skill was last updated, unless `record` is told otherwise. */
+export const UPDATED = '2026-10-14T09:30:00Z';
+
 /** A file's text, or a symbolic link to `link`. */
 export type File = string | { link: string };
 
-/** What GitHub answers, without a token, for a repository `id` with these files. */
-export function record(id: string, files: Record<string, File>): Recording {
+/**
+ * What GitHub answers, without a token, for a repository `id` with these files; each SKILL.md's
+ * directory last updated at `updated[directory]`, UPDATED by default, or never if null.
+ */
+export function record(id: string, files: Record<string, File>, updated: Record<string, string | null> = {}): Recording {
   const recording: Recording = {
     [`https://api.github.com/repos/${id}`]: { status: 200, body: { full_name: id, default_branch: 'main' } },
     [`https://api.github.com/repos/${id}/commits/main`]: { status: 200, body: { sha: COMMIT } },
@@ -38,6 +44,9 @@ export function record(id: string, files: Record<string, File>): Recording {
   for (const [path, file] of Object.entries(files)) {
     const text = typeof file === 'string' ? file : file.link;
     recording[`https://raw.githubusercontent.com/${id}/${COMMIT}/${path}`] = { status: 200, body: text };
+    if (path.split('/').at(-1) !== 'SKILL.md') continue;
+    const directory = path.split('/').slice(0, -1).join('/');
+    Object.assign(recording, lastCommit(id, COMMIT, directory, updated[directory] === null ? undefined : (updated[directory] ?? UPDATED)));
   }
   return recording;
 }
