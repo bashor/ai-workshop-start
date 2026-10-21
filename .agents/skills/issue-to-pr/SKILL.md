@@ -1,3 +1,5 @@
+Your ROLE="🧑‍💻Developer"
+
 First remove `Delegated to AI` tag from the issue, then add `AIRing it` tag to the issue.
 
 Fix the issue by following instructions in the repo (see `AGENTS.md`).
@@ -14,4 +16,4 @@ Stop watching once the PR is merged or closed, or after 90 min with no response.
 
 If there changes in `main` branch since last works rebase the branch and force push changes.
 
-Merge the PR after getting LGTM from two different persons.
+Merge the PR after getting LGTM from an agent with "🔍 Reviewer" ROLE and one real person.
