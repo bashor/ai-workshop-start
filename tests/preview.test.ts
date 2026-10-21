@@ -78,18 +78,18 @@ function pushPages(base: string, origin: string, files: Record<string, string>) 
   git(other, 'push', '--quiet', 'origin', 'gh-pages');
 }
 
-test('a preview: dist/ in pr-preview/pr-<N>/ of a new gh-pages branch, with .nojekyll at the root', (t) => {
+test('a preview: dist/ in .pr-preview/<N>/ of a new gh-pages branch, with .nojekyll at the root', (t) => {
   const { base, origin, clone } = repositories(t);
   const dist = directory(base, 'dist', { 'index.html': '<p>page</p>', 'app.js': 'app()', 'assets/a.css': 'a{}' });
   assert.equal(publish({ cwd: clone, pr: 7, dist, sha: SHA }), 'published');
   assert.deepEqual(pages(origin), {
     '.nojekyll': '',
-    'pr-preview/pr-7/index.html': '<p>page</p>',
-    'pr-preview/pr-7/app.js': 'app()',
-    'pr-preview/pr-7/assets/a.css': 'a{}',
+    '.pr-preview/7/index.html': '<p>page</p>',
+    '.pr-preview/7/app.js': 'app()',
+    '.pr-preview/7/assets/a.css': 'a{}',
   });
   // Only the preview: none of main's files.
-  assert.match(git(origin, 'log', '-1', '--format=%s', 'gh-pages'), /pr-7.*5ab6270/);
+  assert.match(git(origin, 'log', '-1', '--format=%s', 'gh-pages'), /\.pr-preview\/7.*5ab6270/);
   assert.equal(git(origin, 'rev-list', '--count', 'gh-pages'), '1');
   // The checkout is left as it was.
   assert.equal(git(clone, 'status', '--porcelain'), '');
@@ -98,14 +98,14 @@ test('a preview: dist/ in pr-preview/pr-<N>/ of a new gh-pages branch, with .noj
 
 test('a new push: the preview replaced, the files gone from dist/ gone; the rest of gh-pages kept', (t) => {
   const { base, origin, clone } = repositories(t);
-  pushPages(base, origin, { 'index.html': 'main', 'pr-preview/pr-3/index.html': 'three', '.nojekyll': '' });
+  pushPages(base, origin, { 'index.html': 'main', '.pr-preview/3/index.html': 'three', '.nojekyll': '' });
   publish({ cwd: clone, pr: 7, dist: directory(base, 'first', { 'index.html': 'one', 'old.js': 'old' }), sha: SHA });
   assert.equal(publish({ cwd: clone, pr: 7, dist: directory(base, 'second', { 'index.html': 'two' }), sha: SHA }), 'published');
   assert.deepEqual(pages(origin), {
     '.nojekyll': '',
     'index.html': 'main',
-    'pr-preview/pr-3/index.html': 'three',
-    'pr-preview/pr-7/index.html': 'two',
+    '.pr-preview/3/index.html': 'three',
+    '.pr-preview/7/index.html': 'two',
   });
 });
 
@@ -128,7 +128,7 @@ test('someone else pushes to gh-pages meanwhile: published again on top, no push
     dist: directory(base, 'dist', { 'index.html': 'seven' }),
     sha: SHA,
     beforePush: () => {
-      if (raced++ === 0) pushPages(base, origin, { 'pr-preview/pr-8/index.html': 'eight' });
+      if (raced++ === 0) pushPages(base, origin, { '.pr-preview/8/index.html': 'eight' });
     },
   });
   assert.equal(result, 'published');
@@ -136,24 +136,24 @@ test('someone else pushes to gh-pages meanwhile: published again on top, no push
   assert.deepEqual(pages(origin), {
     '.nojekyll': '',
     'index.html': 'main',
-    'pr-preview/pr-7/index.html': 'seven',
-    'pr-preview/pr-8/index.html': 'eight',
+    '.pr-preview/7/index.html': 'seven',
+    '.pr-preview/8/index.html': 'eight',
   });
 });
 
 test('closed or merged: the preview removed, the rest of gh-pages kept', (t) => {
   const { base, origin, clone } = repositories(t);
-  pushPages(base, origin, { 'index.html': 'main', 'pr-preview/pr-3/index.html': 'three' });
+  pushPages(base, origin, { 'index.html': 'main', '.pr-preview/3/index.html': 'three' });
   publish({ cwd: clone, pr: 7, dist: directory(base, 'dist', { 'index.html': 'seven', 'a/b.js': 'b' }), sha: SHA });
   assert.equal(remove({ cwd: clone, pr: 7 }), 'removed');
-  assert.deepEqual(pages(origin), { '.nojekyll': '', 'index.html': 'main', 'pr-preview/pr-3/index.html': 'three' });
+  assert.deepEqual(pages(origin), { '.nojekyll': '', 'index.html': 'main', '.pr-preview/3/index.html': 'three' });
 });
 
 test('closed with no preview: nothing, no commit; no gh-pages branch → none created', (t) => {
   const { base, origin, clone } = repositories(t);
   assert.equal(remove({ cwd: clone, pr: 7 }), 'absent');
   assert.equal(pages(origin), undefined);
-  pushPages(base, origin, { 'pr-preview/pr-70/index.html': 'seventy' });
+  pushPages(base, origin, { '.pr-preview/70/index.html': 'seventy' });
   const before = head(origin);
   assert.equal(remove({ cwd: clone, pr: 7 }), 'absent');
   assert.equal(head(origin), before);
@@ -203,12 +203,12 @@ test('the comment: the URL and the commit; how to set up Pages when it is not; r
   const url = 'https://bashor.github.io/ai-workshop-start/';
   const published = commentBody({ state: 'published', pr: 7, site: { url, ready: true }, sha: SHA });
   assert.ok(published.startsWith(MARKER));
-  assert.match(published, /https:\/\/bashor\.github\.io\/ai-workshop-start\/pr-preview\/pr-7\//);
+  assert.match(published, /https:\/\/bashor\.github\.io\/ai-workshop-start\/\.pr-preview\/7\//);
   assert.match(published, /5ab6270/);
   assert.doesNotMatch(published, /Settings/);
 
   const notReady = commentBody({ state: 'published', pr: 7, site: { url, ready: false }, sha: SHA });
-  assert.match(notReady, /pr-preview\/pr-7\//);
+  assert.match(notReady, /\.pr-preview\/7\//);
   assert.match(notReady, /Settings → Pages/);
   assert.match(notReady, /Deploy from a branch/);
   assert.match(notReady, /`gh-pages`/);
@@ -217,7 +217,7 @@ test('the comment: the URL and the commit; how to set up Pages when it is not; r
   const removed = commentBody({ state: 'removed', pr: 7, site: { url, ready: true }, sha: SHA });
   assert.ok(removed.startsWith(MARKER));
   assert.match(removed, /removed/i);
-  assert.doesNotMatch(removed, /pr-preview\/pr-7/);
+  assert.doesNotMatch(removed, /\.pr-preview\/7/);
 });
 
 test('one comment, kept up to date: created the first time, then the same one edited', async () => {
@@ -304,13 +304,13 @@ test('removed when closed or merged, whatever its files; one run at a time for a
   assert.equal(removal.concurrency['cancel-in-progress'], true);
 });
 
-test('the built page works in pr-preview/pr-<N>/: the page URL keeps its path', async (t) => {
+test('the built page works in .pr-preview/<N>/: the page URL keeps its path', async (t) => {
   const outdir = mkdtempSync(join(tmpdir(), 'skill-atlas-preview-page-'));
   t.after(() => rmSync(outdir, { recursive: true, force: true }));
   await build(outdir);
   const html = readFileSync(join(outdir, 'index.html'), 'utf8');
   assert.doesNotMatch(html, /(?:src|href)="\//);
-  const url = 'https://bashor.github.io/ai-workshop-start/pr-preview/pr-7/';
+  const url = 'https://bashor.github.io/ai-workshop-start/.pr-preview/7/';
   const dom = new JSDOM(html, { url: `${url}?repo=JetBrains/fixture` });
   t.after(() => dom.window.close());
   mountApp(dom.window as unknown as Window, { fetch: replay(recordFixture('JetBrains/fixture')) });
@@ -324,4 +324,8 @@ test('the built page works in pr-preview/pr-<N>/: the page URL keeps its path', 
   assert.equal(location.searchParams.get('repo'), 'JetBrains/fixture');
   assert.ok(location.searchParams.get('skill'));
   assert.equal(new URL('app.js', location).href, `${url}app.js`);
+});
+
+test('.pr-preview/ in .gitignore: a preview put into a checkout by hand is never committed', () => {
+  assert.equal(git(ROOT, 'check-ignore', '--no-index', '.pr-preview/7/index.html'), '.pr-preview/7/index.html');
 });
