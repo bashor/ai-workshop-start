@@ -34,6 +34,9 @@ main { flex: 1; display: flex; min-height: 0; }
 #skills[aria-busy="true"] #status::before { content: ""; display: inline-block; width: 0.8em; height: 0.8em; margin-right: 0.5em;
   border: 2px solid var(--muted); border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+/* An organization's scan: the share of its repositories scanned. */
+#progress { display: block; width: calc(100% - 1rem); height: 0.4rem; margin: -0.25rem 0.5rem 0.75rem; accent-color: var(--accent); }
+#progress[hidden] { display: none; }
 
 #summary { display: flex; align-items: center; gap: 0.5rem; font-size: 1rem; margin: 0.75rem 0.5rem; }
 #summary .repository { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
