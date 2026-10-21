@@ -1,5 +1,5 @@
 // node scripts/preview.ts publish | remove: a pull request's preview of the web page, in
-// pr-preview/pr-<N>/ of the gh-pages branch, and the comment on the pull request linking it.
+// .pr-preview/<N>/ of the gh-pages branch, and the comment on the pull request linking it.
 // See spec/preview.md. Run in a checkout whose `origin` can be pushed to, as the workflow's.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
@@ -24,9 +24,9 @@ export const MARKER = '<!-- skill-atlas-preview -->';
 const ATTEMPTS = 5;
 const BOT = { name: 'github-actions[bot]', email: '41898282+github-actions[bot]@users.noreply.github.com' };
 
-const directory = (pr: number) => `pr-preview/pr-${pr}`;
+const directory = (pr: number) => `.pr-preview/${pr}`;
 
-/** `dist` in pr-preview/pr-<N>/ of the branch, in place of what was there. */
+/** `dist` in .pr-preview/<N>/ of the branch, in place of what was there. */
 export function publish(target: Target & { dist: string; sha: string }): 'published' | 'unchanged' {
   const dist = resolve(target.cwd, target.dist);
   const files = walk(dist).map((path) => relative(dist, path).split(sep).join('/'));
@@ -41,13 +41,13 @@ export function publish(target: Target & { dist: string; sha: string }): 'publis
   }) ? 'published' : 'unchanged';
 }
 
-/** pr-preview/pr-<N>/ gone from the branch; nothing when it is not there. */
+/** .pr-preview/<N>/ gone from the branch; nothing when it is not there. */
 export function remove(target: Target): 'removed' | 'absent' {
   return update(target, `Remove ${directory(target.pr)}`, (_, base) => base !== undefined) ? 'removed' : 'absent';
 }
 
 /**
- * The branch, with pr-preview/pr-<N>/ cleared and then `fill`ed, pushed as a new commit on top of it.
+ * The branch, with .pr-preview/<N>/ cleared and then `fill`ed, pushed as a new commit on top of it.
  * False when that changes nothing, or `fill` says so. Fetched and done again when someone pushed meanwhile.
  */
 function update(target: Target, message: string, fill: (git: Git, base: string | undefined) => boolean): boolean {

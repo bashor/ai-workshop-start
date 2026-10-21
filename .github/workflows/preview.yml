@@ -1,4 +1,4 @@
-# A preview of the web page for each pull request that changes it: dist/ in pr-preview/pr-<N>/ of the
+# A preview of the web page for each pull request that changes it: dist/ in .pr-preview/<N>/ of the
 # gh-pages branch, on GitHub Pages, linked in a comment on the pull request. See spec/preview.md.
 # preview-remove.yml removes it when the pull request is closed.
 name: Preview
