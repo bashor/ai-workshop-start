@@ -1,6 +1,7 @@
 Your ROLE="🧑‍💻Developer"
 
 First remove `Delegated to AI` tag from the issue, then add `AIRing it` tag to the issue.
+Add a message to the issue "Working on it...".
 
 Fix the issue by following instructions in the repo (see `AGENTS.md`).
 
