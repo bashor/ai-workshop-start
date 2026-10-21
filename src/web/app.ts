@@ -97,9 +97,12 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
     return undefined;
   }
 
-  /** The saved token, read at each scan; never in the page URL. */
+  /**
+   * The saved token, read at each scan; never in the page URL. The files through the tree, not code search:
+   * GitHub answers it with no CORS header, so the browser blocks it.
+   */
   function github() {
-    return { fetch, token: savedToken(), tokenSource: 'the saved token', suggestToken: false };
+    return { fetch, token: savedToken(), search: false, tokenSource: 'the saved token', suggestToken: false };
   }
 
   /** Local storage, or undefined when the browser does not allow it. */
