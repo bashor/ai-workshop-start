@@ -93,6 +93,6 @@ The page on **GitHub Pages**, at `https://<owner>.github.io/<repo>/`
 - Published only when **green**: `npm ci`, the typecheck and the tests pass, then `npm run build`; *nothing* published otherwise
 - What is published: `dist/`, the output of `npm run build`, nothing else
 - One publication at a time: a newer push waits, the running one is *not* cancelled halfway
-- Only the permissions it needs: reading the repository, writing Pages
+- Only the permissions it needs: reading the repository, writing Pages, the ID token Pages checks the deployment with
 - Once, in the repository's settings: *Pages → Source: GitHub Actions*
 - Tests: the page in *jsdom*, GitHub answering from recordings
