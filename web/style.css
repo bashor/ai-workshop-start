@@ -27,7 +27,7 @@ main { flex: 1; display: flex; min-height: 0; }
 
 #summary { display: flex; align-items: center; gap: 0.5rem; font-size: 1rem; margin: 0.75rem 0.5rem; }
 #summary .repository { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#summary .separator { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+#summary .separator, #list .copies .separator { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 #summary .badge { flex-shrink: 0; padding: 0 0.5rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600;
   background: color-mix(in srgb, var(--accent) 18%, transparent); }
 #warnings { margin: 0 0.5rem 0.75rem; padding: 0.5rem 0.5rem 0.5rem 1.5rem; font-size: 0.85rem; background: color-mix(in srgb, orange 15%, transparent); border-radius: 6px; }
