@@ -8,6 +8,8 @@ permissions:
   contents: write
   pull-requests: write
   pages: read
+  # The Pages workflow run again: it publishes the previews.
+  actions: write
 concurrency:
   group: preview-${{ github.event.pull_request.number }}
   cancel-in-progress: true
@@ -28,3 +30,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}

@@ -1,6 +1,8 @@
 // node scripts/preview.ts publish | remove: a pull request's preview of the web page, in
-// .pr-preview/<N>/ of the gh-pages branch, and the comment on the pull request linking it.
-// See spec/preview.md. Run in a checkout whose `origin` can be pushed to, as the workflow's.
+// .pr-preview/<N>/ of the gh-pages branch, the comment on the pull request linking it, and the Pages
+// workflow run again to publish it. node scripts/preview.ts collect dist: every preview into
+// dist/.pr-preview/, for the Pages workflow. See spec/preview.md. Run in a checkout of the repository,
+// whose `origin` can be pushed to for publish and remove, as the workflows'.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -24,18 +26,16 @@ export const MARKER = '<!-- skill-atlas-preview -->';
 const ATTEMPTS = 5;
 const BOT = { name: 'github-actions[bot]', email: '41898282+github-actions[bot]@users.noreply.github.com' };
 
-const directory = (pr: number) => `.pr-preview/${pr}`;
+const PREVIEWS = '.pr-preview';
+const directory = (pr: number) => `${PREVIEWS}/${pr}`;
 
 /** `dist` in .pr-preview/<N>/ of the branch, in place of what was there. */
 export function publish(target: Target & { dist: string; sha: string }): 'published' | 'unchanged' {
   const dist = resolve(target.cwd, target.dist);
   const files = walk(dist).map((path) => relative(dist, path).split(sep).join('/'));
-  return update(target, `Preview ${directory(target.pr)} at ${target.sha.slice(0, 7)}`, (git, base) => {
+  return update(target, `Preview ${directory(target.pr)} at ${target.sha.slice(0, 7)}`, (git) => {
     const blobs = git(['hash-object', '-w', '--stdin-paths'], files.map((file) => join(dist, file)).join('\n')).split('\n');
     const entries = files.map((file, i) => `100644 ${blobs[i]}\t${directory(target.pr)}/${file}`);
-    if (!base || git(['ls-files', '--cached', '--', '.nojekyll']) === '') {
-      entries.push(`100644 ${git(['hash-object', '-w', '--stdin'], '')}\t.nojekyll`);
-    }
     git(['update-index', '--index-info'], `${entries.join('\n')}\n`);
     return true;
   }) ? 'published' : 'unchanged';
@@ -44,6 +44,18 @@ export function publish(target: Target & { dist: string; sha: string }): 'publis
 /** .pr-preview/<N>/ gone from the branch; nothing when it is not there. */
 export function remove(target: Target): 'removed' | 'absent' {
   return update(target, `Remove ${directory(target.pr)}`, (_, base) => base !== undefined) ? 'removed' : 'absent';
+}
+
+/** Every preview on the branch, into `into`/.pr-preview/: the numbers of their pull requests. */
+export function collect({ cwd, into, remote = 'origin', branch = 'gh-pages' }: { cwd: string; into: string; remote?: string; branch?: string }): number[] {
+  const git = (args: string[]) => execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
+  if (git(['ls-remote', '--heads', remote, `refs/heads/${branch}`]).length === 0) return [];
+  const local = `refs/preview/${branch}`;
+  git(['fetch', '--quiet', '--no-tags', '--depth=1', remote, `+refs/heads/${branch}:${local}`]);
+  const previews = git(['ls-tree', '-d', '--name-only', local, `${PREVIEWS}/`]).toString().split('\n').filter(Boolean);
+  if (previews.length === 0) return [];
+  execFileSync('tar', ['-x', '-C', resolve(cwd, into)], { input: git(['archive', '--format=tar', local, '--', PREVIEWS]) });
+  return previews.map((path) => Number(path.slice(PREVIEWS.length + 1))).toSorted((a, b) => a - b);
 }
 
 /**
@@ -124,7 +136,7 @@ function request({ fetch = globalThis.fetch, token, api = 'https://api.github.co
     });
 }
 
-/** The Pages site: its URL, and whether it serves the gh-pages branch at its root. */
+/** The Pages site: its URL, and whether GitHub Actions publishes it, as the Pages workflow does. */
 export interface Site {
   url: string;
   ready: boolean;
@@ -134,9 +146,8 @@ export interface Site {
 export async function pagesSite(repository: string, api: Api = {}): Promise<Site> {
   const response = await request(api)(`/repos/${repository}/pages`);
   if (response.ok) {
-    const site = (await response.json()) as { html_url: string; build_type?: string; source?: { branch?: string; path?: string } | null };
-    const ready = site.build_type !== 'workflow' && site.source?.branch === 'gh-pages' && site.source.path === '/';
-    return { url: site.html_url.endsWith('/') ? site.html_url : `${site.html_url}/`, ready };
+    const site = (await response.json()) as { html_url: string; build_type?: string };
+    return { url: site.html_url.endsWith('/') ? site.html_url : `${site.html_url}/`, ready: site.build_type === 'workflow' };
   }
   const [owner, repo] = repository.toLowerCase().split('/');
   return { url: repo === `${owner}.github.io` ? `https://${owner}.github.io/` : `https://${owner}.github.io/${repo}/`, ready: false };
@@ -149,13 +160,13 @@ export function commentBody({ state, pr, site, sha }: { state: 'published' | 're
     MARKER,
     `**Preview** of the Web UI for this pull request: ${site.url}${directory(pr)}/`,
     '',
-    `At ${sha.slice(0, 7)}. Updated on each push; removed when the pull request is closed or merged.`,
+    `At ${sha.slice(0, 7)}: live once the Pages workflow has run, in a minute or two. Updated on each push; removed when the pull request is closed or merged.`,
   ];
   if (!site.ready) {
     lines.push(
       '',
-      "> GitHub Pages doesn't serve the `gh-pages` branch yet, so the link doesn't work yet. Once, in the repository's " +
-        '*Settings → Pages*: *Deploy from a branch*, `gh-pages`, `/ (root)`.',
+      "> GitHub Pages isn't published by GitHub Actions yet, so the link doesn't work yet. Once, in the repository's " +
+        '*Settings → Pages → Source: GitHub Actions*.',
     );
   }
   return `${lines.join('\n')}\n`;
@@ -181,8 +192,19 @@ export async function comment(repository: string, pr: number, body: string, api:
   await check(await call(`/repos/${repository}/issues/${pr}/comments`, { method: 'POST', body: { body } }), 'creating the comment');
 }
 
+/** The Pages workflow run again on `ref`, to publish the previews as they are now. */
+export async function dispatch(repository: string, ref: string, api: Api = {}): Promise<void> {
+  const response = await request(api)(`/repos/${repository}/actions/workflows/pages.yml/dispatches`, { method: 'POST', body: { ref } });
+  if (!response.ok) throw new Error(`GitHub answered ${response.status} to running the Pages workflow: ${await response.text()}`);
+}
+
 if (import.meta.main) {
   const command = process.argv[2];
+  if (command === 'collect') {
+    const previews = collect({ cwd: process.cwd(), into: process.argv[3] ?? 'dist' });
+    console.log(`${previews.length} previews: ${previews.map((pr) => `${directory(pr)}/`).join(', ')}`);
+    process.exit(0);
+  }
   const need = (name: string) => {
     const value = process.env[name];
     if (!value) throw new Error(`${name} is not set`);
@@ -192,20 +214,23 @@ if (import.meta.main) {
   const pr = Number(need('PR_NUMBER'));
   const api: Api = { token: process.env.GITHUB_TOKEN, api: process.env.GITHUB_API_URL };
   const target: Target = { cwd: process.cwd(), pr };
+  const ref = need('DEFAULT_BRANCH');
   if (command === 'publish') {
     const sha = need('PR_SHA');
     const result = publish({ ...target, dist: process.env.DIST ?? 'dist', sha });
+    if (result === 'published') await dispatch(repository, ref, api);
     const site = await pagesSite(repository, api);
     await comment(repository, pr, commentBody({ state: 'published', pr, site, sha }), api);
     console.log(`${result}: ${site.url}${directory(pr)}/${site.ready ? '' : ' (GitHub Pages does not serve gh-pages yet)'}`);
   } else if (command === 'remove') {
     const result = remove(target);
     if (result === 'removed') {
+      await dispatch(repository, ref, api);
       await comment(repository, pr, commentBody({ state: 'removed', pr, site: await pagesSite(repository, api), sha: '' }), api);
     }
     console.log(`${result}: ${directory(pr)}/`);
   } else {
-    console.error('usage: node scripts/preview.ts publish | remove');
+    console.error('usage: node scripts/preview.ts publish | remove | collect <dist>');
     process.exit(1);
   }
 }
