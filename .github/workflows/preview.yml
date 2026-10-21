@@ -1,0 +1,43 @@
+# A preview of the web page for each pull request that changes it: dist/ in pr-preview/pr-<N>/ of the
+# gh-pages branch, on GitHub Pages, linked in a comment on the pull request. See spec/preview.md.
+# preview-remove.yml removes it when the pull request is closed.
+name: Preview
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - web/**
+      - src/web/**
+      - src/core/**
+      - scripts/build.ts
+      - scripts/preview.ts
+      - package.json
+      - package-lock.json
+      - .github/workflows/preview.yml
+permissions:
+  contents: write
+  pull-requests: write
+  pages: read
+# One run at a time for a pull request, the last push wins; preview-remove.yml shares the group.
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  publish:
+    # A fork's pull request has no write access.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node scripts/preview.ts publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
