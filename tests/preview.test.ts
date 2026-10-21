@@ -192,7 +192,7 @@ function fakeGitHub(routes: Record<string, (body: unknown) => { status: number; 
     requests.push({ method, url: String(url), body, authorization: headers.get('Authorization') ?? undefined });
     const route = routes[`${method} ${url}`];
     const answer = route ? route(body) : { status: 404, body: { message: 'Not Found' } };
-    return new Response(JSON.stringify(answer.body ?? {}), { status: answer.status });
+    return new Response(answer.status === 204 ? null : JSON.stringify(answer.body ?? {}), { status: answer.status });
   };
   return { fetch, requests };
 }

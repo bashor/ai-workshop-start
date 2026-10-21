@@ -1,5 +1,5 @@
 # A preview of the web page for each pull request that changes it: dist/ in .pr-preview/<N>/ of the
-# gh-pages branch, on GitHub Pages, linked in a comment on the pull request. See spec/preview.md.
+# gh-pages branch, published by pages.yml, linked in a comment on the pull request. See spec/preview.md.
 # preview-remove.yml removes it when the pull request is closed.
 name: Preview
 on:
@@ -18,6 +18,8 @@ permissions:
   contents: write
   pull-requests: write
   pages: read
+  # The Pages workflow run again: it publishes the previews.
+  actions: write
 # One run at a time for a pull request, the last push wins; preview-remove.yml shares the group.
 concurrency:
   group: preview-${{ github.event.pull_request.number }}
@@ -40,4 +42,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           PR_SHA: ${{ github.event.pull_request.head.sha }}
