@@ -2,25 +2,27 @@
 // the token every GitHub API request carries, with GitHub answering from recordings.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { Recording } from '../src/core/replay.ts';
+import type { Fetch } from '../src/core/github.ts';
+import { replay, type Recording } from '../src/core/replay.ts';
 import { COMMIT, openPage, record, recordOrganization, TOKEN_KEY } from './web-helpers.ts';
 
 const SKILL = '.claude/skills/commits/SKILL.md';
 const TEXT = '---\nname: commits\ndescription: Write commit messages the way this repository does.\n---\n# Commits\n';
 
-/** A repository with one skill, as GitHub answers it with a token, through code search, and without one. */
-function recordWithSearch(id: string): Recording {
-  return {
-    ...record(id, { [SKILL]: TEXT, 'README.md': '# Readme\n' }),
-    [`https://api.github.com/search/code?q=filename:SKILL.md+repo:${id}&per_page=100&page=1`]: {
-      status: 200,
-      body: { total_count: 1, items: [{ path: SKILL }] },
-    },
-  };
+/** A repository with one skill, as GitHub answers it, with a token and without one. */
+function recordRepository(id: string): Recording {
+  return record(id, { [SKILL]: TEXT, 'README.md': '# Readme\n' });
 }
 
-const EXAMPLE = recordWithSearch('JetBrains/example');
-const OTHER = recordWithSearch('JetBrains/other');
+/** The recording; code search failing as in the browser, which blocks it: GitHub sends it with no CORS header. */
+function blockingSearch(recording: Recording): Fetch {
+  const answer = replay(recording);
+  return (url, init) =>
+    url.startsWith('https://api.github.com/search/code') ? Promise.reject(new TypeError('Failed to fetch')) : answer(url, init);
+}
+
+const EXAMPLE = recordRepository('JetBrains/example');
+const OTHER = recordRepository('JetBrains/other');
 const ORGANIZATION: Recording = { ...recordOrganization('JetBrains', ['example', 'other']), ...EXAMPLE, ...OTHER };
 
 type Page = ReturnType<typeof openPage>;
@@ -158,18 +160,19 @@ test('Remove token → the saved token forgotten, the button Add token again, no
   for (const request of page.authorizations) assert.equal(request.authorization, undefined, request.url);
 });
 
-test('a saved token → every GitHub API request of a repository scan carries it, the skills found through code search', async () => {
-  const page = openPage('', EXAMPLE);
+test('a saved token → every GitHub API request of a repository scan carries it, the files through the tree, not code search', async () => {
+  const page = openPage('', EXAMPLE, { fetch: blockingSearch(EXAMPLE) });
   page.token('  secret  ');
   page.scan('JetBrains/example');
-  await page.until(() => page.names().length > 0);
-  assert.equal(page.$('#summary')!.textContent, 'JetBrains/example · 1 skill');
+  await scanned(page);
+  assert.equal(page.$('#summary')?.textContent, 'JetBrains/example · 1 skill');
+  assert.deepEqual(page.names(), ['commits']);
   assert.deepEqual(
     api(page).map((request) => request.url),
     [
       'https://api.github.com/repos/JetBrains/example',
       'https://api.github.com/repos/JetBrains/example/commits/main',
-      'https://api.github.com/search/code?q=filename:SKILL.md+repo:JetBrains/example&per_page=100&page=1',
+      `https://api.github.com/repos/JetBrains/example/git/trees/${COMMIT}?recursive=1`,
       // The skill's last update.
       `https://api.github.com/repos/JetBrains/example/commits?sha=${COMMIT}&path=.claude/skills/commits&per_page=1`,
     ],
@@ -177,8 +180,43 @@ test('a saved token → every GitHub API request of a repository scan carries it
   for (const request of api(page)) assert.equal(request.authorization, 'Bearer secret', request.url);
 });
 
+test('a saved token, a tree too large to list at once → only the skill roots, with the warning, as without a token', async () => {
+  const id = 'JetBrains/huge';
+  const roots = '0'.repeat(39) + '1';
+  const claude = '0'.repeat(39) + '2';
+  const skills = '0'.repeat(39) + '3';
+  const large: Recording = {
+    ...record(id, { [SKILL]: TEXT }),
+    [`https://api.github.com/repos/${id}/git/trees/${COMMIT}?recursive=1`]: { status: 200, body: { truncated: true, tree: [] } },
+    [`https://api.github.com/repos/${id}/git/trees/${COMMIT}`]: {
+      status: 200,
+      body: { truncated: false, tree: [{ path: '.claude', type: 'tree', mode: '040000', sha: roots }] },
+    },
+    [`https://api.github.com/repos/${id}/git/trees/${roots}`]: {
+      status: 200,
+      body: { truncated: false, tree: [{ path: 'skills', type: 'tree', mode: '040000', sha: claude }] },
+    },
+    [`https://api.github.com/repos/${id}/git/trees/${claude}?recursive=1`]: {
+      status: 200,
+      body: { truncated: false, tree: [{ path: 'commits/SKILL.md', type: 'blob', mode: '100644', sha: skills }] },
+    },
+  };
+  const page = openPage('', large, { fetch: blockingSearch(large) });
+  page.token('secret');
+  page.scan(id);
+  await scanned(page);
+  assert.equal(page.$('#summary')?.textContent, 'JetBrains/huge · 1 skill');
+  assert.deepEqual(page.names(), ['commits']);
+  assert.deepEqual(
+    page.$$('#warnings li').map((element) => element.textContent),
+    ['the tree is too large to list at once; looked only in .agents/skills, .claude/skills, .github/skills, agent/skills'],
+  );
+  assert.ok(!api(page).some((request) => request.url.startsWith('https://api.github.com/search/code')));
+  for (const request of api(page)) assert.equal(request.authorization, 'Bearer secret', request.url);
+});
+
 test("a saved token → every GitHub API request of an organization's scan carries it, the files through the tree, not code search", async () => {
-  const page = openPage('', ORGANIZATION);
+  const page = openPage('', ORGANIZATION, { fetch: blockingSearch(ORGANIZATION) });
   page.token('secret');
   page.scan('JetBrains');
   await page.until(() => page.badges().length === 2);
