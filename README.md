@@ -50,6 +50,14 @@ paths are relative, so upload `dist/` to any static host, at its root or under a
 Pages at `https://<owner>.github.io/<repo>/`. To check the build first, serve `dist/` locally with any
 static server, e.g. `python3 -m http.server -d dist 8080`, and open http://127.0.0.1:8080/.
 
+### Publish to GitHub Pages
+
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml) republishes the page after each push to `main`:
+`npm ci`, the typecheck and the tests, then `npm run build`, and `dist/` goes to
+`https://<owner>.github.io/<repo>/`. Nothing is published if a step fails. It can also be run by hand,
+from the repository's **Actions** tab. Once, before the first run: the repository's **Settings → Pages →
+Source: GitHub Actions**.
+
 ## More
 
 - [spec/](spec/): what it does. [AGENTS.md](AGENTS.md): the definition of done.
