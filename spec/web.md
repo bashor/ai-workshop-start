@@ -11,7 +11,7 @@ A text field **at the top**: `owner/repo`, or a GitHub URL as the CLI takes it
 An **Add token** button next to the text field: a GitHub token, as the CLI's `--token`, **saved** in the browser
 - Click → a **token field** in its place, *hidden* as typed, empty and focused, with **Save** and **Cancel**
   - Save or Enter → the token saved in the browser's *local storage*; the field gone, the button back
-  - Leading and trailing spaces ignored; empty → no token saved, as before the button
+  - Leading and trailing spaces ignored; empty → no token saved, a saved one forgotten, as Remove token
   - Cancel or Escape → nothing changed, the field gone
 - A token saved → the button reads **Change token**, with a **Remove token** button next to it
   - Remove token → the saved token forgotten: no token, the button `Add token` again

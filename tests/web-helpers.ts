@@ -72,10 +72,26 @@ export function recordFixture(id: string): Recording {
   return record(id, files);
 }
 
-/** The page at `?<query>`, mounted; every GitHub request it makes is in `requests`, its Authorization in `authorizations`. */
-export function openPage(query: string, recording: Recording, options: { fetch?: Fetch } = {}) {
+/** Where the page saves the token, in local storage. */
+export const TOKEN_KEY = 'skill-atlas.token';
+
+/**
+ * The page at `?<query>`, mounted; every GitHub request it makes is in `requests`, its Authorization in `authorizations`.
+ * `storage`: local storage as the page finds it, such as another page's, for a reload; `'unavailable'`: it throws.
+ */
+export function openPage(query: string, recording: Recording, options: { fetch?: Fetch; storage?: Record<string, string> | 'unavailable' } = {}) {
   const dom = new JSDOM(readFileSync(PAGE, 'utf8'), { url: `${ORIGIN}${query}` });
   const window = dom.window;
+  const { storage } = options;
+  if (storage === 'unavailable') {
+    Object.defineProperty(window, 'localStorage', {
+      get() {
+        throw new window.DOMException('The operation is insecure.', 'SecurityError');
+      },
+    });
+  } else if (storage) {
+    for (const [key, value] of Object.entries(storage)) window.localStorage.setItem(key, value);
+  }
   const requests: string[] = [];
   const authorizations: { url: string; authorization: string | undefined }[] = [];
   const answer = options.fetch ?? replay(recording);
@@ -103,9 +119,20 @@ export function openPage(query: string, recording: Recording, options: { fetch?:
       ($('#repo') as HTMLInputElement).value = text;
       $('#scan')!.click();
     },
-    /** Types `text` into the token field, next to the field at the top. */
+    /** Saves `text` as the token: Add token, or Change token, then types it into the token field and presses Save. */
     token(text: string) {
+      $('#add-token')!.click();
       ($('#token') as HTMLInputElement).value = text;
+      $('#save-token')!.click();
+    },
+    /** Presses `key` in the token field. */
+    press(key: string) {
+      $('#token')!.dispatchEvent(new window.KeyboardEvent('keydown', { key, bubbles: true }));
+    },
+    /** Whether the element is shown: there, and neither it nor a parent hidden. */
+    shown(selector: string) {
+      for (let element = $(selector); element; element = element.parentElement) if (element.hidden) return false;
+      return $(selector) !== null;
     },
     /** Types `text` into the filter above the skills, as typing does: an input event. */
     filter(text: string) {

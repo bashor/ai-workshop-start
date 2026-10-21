@@ -1,9 +1,9 @@
-// The token field in spec/web.md, checked on the real page in jsdom: the token every GitHub API
-// request carries, with GitHub answering from recordings.
+// The Add token button in spec/web.md, checked on the real page in jsdom: the token saved in local storage,
+// the token every GitHub API request carries, with GitHub answering from recordings.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Recording } from '../src/core/replay.ts';
-import { openPage, record, recordOrganization } from './web-helpers.ts';
+import { openPage, record, recordOrganization, TOKEN_KEY } from './web-helpers.ts';
 
 const SKILL = '.claude/skills/commits/SKILL.md';
 const TEXT = '---\nname: commits\ndescription: Write commit messages the way this repository does.\n---\n# Commits\n';
@@ -30,17 +30,107 @@ const api = (page: Page) => page.authorizations.filter((request) => request.url.
 /** Waits until the scan is over: no progress on the left. */
 const scanned = (page: Page) => page.until(() => page.$('#skills')!.getAttribute('aria-busy') === 'false' && !/^Scanning/.test(page.$('#status')!.textContent!));
 
-test('the token field: next to the field at the top, hidden as typed, empty', () => {
+/** The page's local storage: what a reload finds. */
+const stored = (page: Page) => {
+  const storage = page.window.localStorage;
+  return Object.fromEntries(Array.from({ length: storage.length }, (_, index) => [storage.key(index)!, storage.getItem(storage.key(index)!)!]));
+};
+
+/** What is shown of the token controls: the buttons by their text, the field as `field`. */
+function controls(page: Page) {
+  return ['#add-token', '#token', '#save-token', '#cancel-token', '#remove-token']
+    .filter((selector) => page.shown(selector))
+    .map((selector) => (selector === '#token' ? 'field' : page.$(selector)!.textContent));
+}
+
+test('the Add token button: next to the field at the top, no token field, nothing saved', () => {
   const page = openPage('', EXAMPLE);
-  const token = page.$('header #search #token') as HTMLInputElement | null;
-  assert.ok(token);
-  assert.equal(token.type, 'password');
-  assert.equal(token.value, '');
-  assert.ok(token.getAttribute('aria-label'));
+  const button = page.$('header #add-token');
+  assert.ok(button);
+  assert.equal(button.tagName, 'BUTTON');
+  assert.equal(button.getAttribute('type'), 'button');
+  assert.deepEqual(controls(page), ['Add token']);
+  assert.equal(page.window.localStorage.getItem(TOKEN_KEY), null);
   assert.deepEqual(page.requests, []);
 });
 
-test('a token → every GitHub API request of a repository scan carries it, the skills found through code search', async () => {
+test('click Add token → the token field in its place, hidden as typed, empty and focused, with Save and Cancel', () => {
+  const page = openPage('', EXAMPLE);
+  page.$('#add-token')!.click();
+  assert.deepEqual(controls(page), ['field', 'Save', 'Cancel']);
+  const field = page.$('#token') as HTMLInputElement;
+  assert.equal(field.type, 'password');
+  assert.equal(field.value, '');
+  assert.ok(field.getAttribute('aria-label'));
+  assert.equal(page.document.activeElement, field);
+});
+
+test('Save → the token saved in local storage, spaces ignored; the field gone, the button reads Change token', () => {
+  const page = openPage('', EXAMPLE);
+  page.token('  secret  ');
+  assert.equal(page.window.localStorage.getItem(TOKEN_KEY), 'secret');
+  assert.deepEqual(controls(page), ['Change token', 'Remove token']);
+});
+
+test('Enter in the token field → saved, as Save', () => {
+  const page = openPage('', EXAMPLE);
+  page.$('#add-token')!.click();
+  (page.$('#token') as HTMLInputElement).value = 'secret';
+  page.press('Enter');
+  assert.equal(page.window.localStorage.getItem(TOKEN_KEY), 'secret');
+  assert.deepEqual(controls(page), ['Change token', 'Remove token']);
+});
+
+test('Cancel or Escape → nothing changed, the field gone', () => {
+  for (const close of [(page: Page) => page.$('#cancel-token')!.click(), (page: Page) => page.press('Escape')]) {
+    const page = openPage('', EXAMPLE);
+    page.$('#add-token')!.click();
+    (page.$('#token') as HTMLInputElement).value = 'secret';
+    close(page);
+    assert.equal(page.window.localStorage.getItem(TOKEN_KEY), null);
+    assert.deepEqual(controls(page), ['Add token']);
+
+    page.token('first');
+    page.$('#add-token')!.click();
+    assert.equal((page.$('#token') as HTMLInputElement).value, '', 'the saved token not shown');
+    (page.$('#token') as HTMLInputElement).value = 'second';
+    close(page);
+    assert.equal(page.window.localStorage.getItem(TOKEN_KEY), 'first');
+    assert.deepEqual(controls(page), ['Change token', 'Remove token']);
+  }
+});
+
+test('an empty token, or only spaces → nothing saved, a saved one forgotten, the skills found through the tree', async () => {
+  for (const text of ['', '   ']) {
+    const page = openPage('', EXAMPLE);
+    page.token(text);
+    assert.equal(page.window.localStorage.getItem(TOKEN_KEY), null);
+    assert.deepEqual(controls(page), ['Add token']);
+
+    page.token('secret');
+    page.token(text);
+    assert.equal(page.window.localStorage.getItem(TOKEN_KEY), null);
+    assert.deepEqual(controls(page), ['Add token']);
+
+    page.scan('JetBrains/example');
+    await page.until(() => page.names().length > 0);
+    assert.ok(api(page).some((request) => request.url.includes('/git/trees/')));
+    for (const request of page.authorizations) assert.equal(request.authorization, undefined, request.url);
+  }
+});
+
+test('Remove token → the saved token forgotten, the button Add token again, no token from the next scan on', async () => {
+  const page = openPage('', EXAMPLE);
+  page.token('secret');
+  page.$('#remove-token')!.click();
+  assert.equal(page.window.localStorage.getItem(TOKEN_KEY), null);
+  assert.deepEqual(controls(page), ['Add token']);
+  page.scan('JetBrains/example');
+  await page.until(() => page.names().length > 0);
+  for (const request of page.authorizations) assert.equal(request.authorization, undefined, request.url);
+});
+
+test('a saved token → every GitHub API request of a repository scan carries it, the skills found through code search', async () => {
   const page = openPage('', EXAMPLE);
   page.token('  secret  ');
   page.scan('JetBrains/example');
@@ -57,7 +147,7 @@ test('a token → every GitHub API request of a repository scan carries it, the 
   for (const request of api(page)) assert.equal(request.authorization, 'Bearer secret', request.url);
 });
 
-test("a token → every GitHub API request of an organization's scan carries it, the files through the tree, not code search", async () => {
+test("a saved token → every GitHub API request of an organization's scan carries it, the files through the tree, not code search", async () => {
   const page = openPage('', ORGANIZATION);
   page.token('secret');
   page.scan('JetBrains');
@@ -67,17 +157,6 @@ test("a token → every GitHub API request of an organization's scan carries it,
   assert.ok(api(page).some((request) => request.url.includes('/git/trees/')));
   assert.ok(!api(page).some((request) => request.url.startsWith('https://api.github.com/search/code')));
   for (const request of api(page)) assert.equal(request.authorization, 'Bearer secret', request.url);
-});
-
-test('an empty token field, or only spaces → no token, the skills found through the tree', async () => {
-  for (const text of ['', '   ']) {
-    const page = openPage('', EXAMPLE);
-    page.token(text);
-    page.scan('JetBrains/example');
-    await page.until(() => page.names().length > 0);
-    assert.ok(api(page).some((request) => request.url.includes('/git/trees/')));
-    for (const request of page.authorizations) assert.equal(request.authorization, undefined, request.url);
-  }
 });
 
 test('the token is read at each scan: a changed token → used from the next scan on', async () => {
@@ -90,19 +169,11 @@ test('the token is read at each scan: a changed token → used from the next sca
   page.token('second');
   page.scan('JetBrains/other');
   await page.until(() => page.$('#summary')?.textContent === 'JetBrains/other · 1 skill');
-  const second = api(page).length;
   for (const request of api(page).slice(0, first)) assert.equal(request.authorization, 'Bearer first', request.url);
   for (const request of api(page).slice(first)) assert.equal(request.authorization, 'Bearer second', request.url);
-
-  page.token('');
-  page.scan('JetBrains/example');
-  await scanned(page);
-  await page.until(() => page.names().length > 0);
-  assert.ok(api(page).length > second);
-  for (const request of api(page).slice(second)) assert.equal(request.authorization, undefined, request.url);
 });
 
-test('the token is never in the page URL, never stored: a reload → the field empty, no token', async () => {
+test('kept across reloads: a reload → the saved token used, the button Change token; never in the page URL', async () => {
   const page = openPage('', EXAMPLE);
   page.token('secret');
   page.scan('JetBrains/example');
@@ -110,26 +181,44 @@ test('the token is never in the page URL, never stored: a reload → the field e
   page.pick(0);
   await page.until(() => page.param('skill'));
   assert.doesNotMatch(page.window.location.href, /secret/);
-  assert.equal(page.window.localStorage.length, 0);
   assert.equal(page.window.sessionStorage.length, 0);
   assert.doesNotMatch(page.document.cookie, /secret/);
 
-  const reloaded = openPage(new URL(page.window.location.href).search, EXAMPLE);
-  assert.equal((reloaded.$('#token') as HTMLInputElement).value, '');
+  const reloaded = openPage(new URL(page.window.location.href).search, EXAMPLE, { storage: stored(page) });
+  assert.deepEqual(controls(reloaded), ['Change token', 'Remove token']);
   await reloaded.until(() => reloaded.names().length > 0);
-  for (const request of reloaded.authorizations) assert.equal(request.authorization, undefined, request.url);
+  assert.ok(api(reloaded).length > 0);
+  for (const request of api(reloaded)) assert.equal(request.authorization, 'Bearer secret', request.url);
+  assert.doesNotMatch(reloaded.window.location.href, /secret/);
 });
 
-test("the token is not part of the form's own submission: no token in the URL even before the script runs", () => {
+test("the token is not in the search form: no token in the URL even before the script runs", () => {
   const page = openPage('', EXAMPLE);
-  page.token('secret');
+  page.$('#add-token')!.click();
+  (page.$('#token') as HTMLInputElement).value = 'secret';
+  assert.equal(page.$('#search #token'), null);
   (page.$('#repo') as HTMLInputElement).value = 'JetBrains/example';
   // What the browser would put in the URL on Enter or Scan, without the page's script.
   const submitted = new page.window.FormData(page.$('#search') as HTMLFormElement);
   assert.deepEqual([...submitted.entries()], [['repo', 'JetBrains/example']]);
 });
 
-test('GitHub rejects the token → a message naming the token field', async () => {
+test('local storage not available → the token kept for the page only, until a reload', async () => {
+  const page = openPage('', EXAMPLE, { storage: 'unavailable' });
+  assert.deepEqual(controls(page), ['Add token']);
+  page.token('secret');
+  assert.deepEqual(controls(page), ['Change token', 'Remove token']);
+  page.scan('JetBrains/example');
+  await page.until(() => page.names().length > 0);
+  for (const request of api(page)) assert.equal(request.authorization, 'Bearer secret', request.url);
+
+  const reloaded = openPage('?repo=JetBrains/example', EXAMPLE, { storage: 'unavailable' });
+  assert.deepEqual(controls(reloaded), ['Add token']);
+  await reloaded.until(() => reloaded.names().length > 0);
+  for (const request of reloaded.authorizations) assert.equal(request.authorization, undefined, request.url);
+});
+
+test('GitHub rejects the token → a message naming the saved token', async () => {
   const rejected: Recording = {
     'https://api.github.com/repos/JetBrains/example': { status: 401, body: { message: 'Bad credentials' } },
   };
@@ -137,7 +226,7 @@ test('GitHub rejects the token → a message naming the token field', async () =
   page.token('wrong');
   page.scan('JetBrains/example');
   await scanned(page);
-  assert.equal(page.$('#status')!.textContent, 'GitHub rejected the token in the token field');
+  assert.equal(page.$('#status')!.textContent, 'GitHub rejected the saved token');
   assert.deepEqual(page.names(), []);
 });
 
