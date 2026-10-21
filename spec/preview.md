@@ -11,13 +11,14 @@ A pull request that changes **the Web UI**: `web/`, `src/web/`, `src/core/`, `sc
 - A pull request from a *fork* → no preview: its workflow has no write access
 ## Where
 **GitHub Pages**, from the `gh-pages` branch
-- `npm run build`, the PR's `dist/` → `pr-preview/pr-<N>/` of the branch, `N` the PR's number
+- `npm run build`, the PR's `dist/` → `.pr-preview/<N>/` of the branch, `N` the PR's number
   - Only that directory changed: the rest of the branch *kept*, the other previews and whatever is at the root
   - Files gone from `dist/` → gone from the preview
   - No `gh-pages` branch yet → created, with only the preview in it
-  - `.nojekyll` at the root: the files served *as they are*
-- The URL: `<the Pages site>/pr-preview/pr-<N>/`, the Pages site from the GitHub API, else `https://<owner>.github.io/<repo>/`
+  - `.nojekyll` at the root: the files served *as they are*, `.pr-preview/` too, though it starts with `.`
+- The URL: `<the Pages site>/.pr-preview/<N>/`, the Pages site from the GitHub API, else `https://<owner>.github.io/<repo>/`
   - The page's paths are relative: it works there as at the root
+- `.pr-preview/` in the repository's `.gitignore`: a preview put into a checkout by hand is never committed
 ## Comment
 **One comment** on the pull request, kept up to date: edited, never a new one each push
 - Published → the preview's URL and the commit it shows

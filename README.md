@@ -61,7 +61,7 @@ Source: GitHub Actions**.
 ### Preview a pull request
 
 A pull request that changes the web page gets its own copy of it, live on GitHub Pages:
-`https://<owner>.github.io/<repo>/pr-preview/pr-<N>/`, linked in a comment on the pull request. Each push
+`https://<owner>.github.io/<repo>/.pr-preview/<N>/`, linked in a comment on the pull request. Each push
 updates it; it is removed when the pull request is closed or merged. Pull requests from forks get none.
 Once, in the repository's *Settings → Pages*: *Deploy from a branch*, `gh-pages`, `/ (root)`. See
 [spec/preview.md](spec/preview.md).
