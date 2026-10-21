@@ -22,7 +22,10 @@ An **Add token** button next to the text field: a GitHub token, as the CLI's `--
 - Kept across reloads and new tabs: a reload → the saved token used, the button `Change token`
 - The saved token → the token for the **GitHub API requests** of the scans, a repository's or an organization's
   - Read at each scan: a changed token → used from the next scan on
-  - An organization's repositories: their files *through the tree*, as without a token, **not** code search, whose limit is about 10 requests a minute
+  - The files *through the tree*, as without a token, **not** code search: a repository's and an organization's repositories'
+    - GitHub's code search answers with no CORS header: the browser blocks it, `Cannot reach GitHub`
+    - And its limit is about 10 requests a minute
+  - A tree too large to list at once → only the skill roots, with the warning, as without a token
 - *Never* in the page URL: a shared URL holds no token
   - Not even before the page's script runs: the token field is *not in the search form*
 - Local storage not available → the token kept for the page only, until a reload
