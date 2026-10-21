@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { JSDOM } from 'jsdom';
 import type { Fetch } from '../src/core/github.ts';
 import { replay, type Recording } from '../src/core/replay.ts';
-import { mountApp } from '../src/web/app.ts';
+import { mountApp, type Commit } from '../src/web/app.ts';
 import { FIXTURE, lastCommit } from './helpers.ts';
 
 export const PAGE = fileURLToPath(new URL('../web/index.html', import.meta.url));
@@ -87,8 +87,13 @@ export const TOKEN_KEY = 'skill-atlas.token';
 /**
  * The page at `?<query>`, mounted; every GitHub request it makes is in `requests`, its Authorization in `authorizations`.
  * `storage`: local storage as the page finds it, such as another page's, for a reload; `'unavailable'`: it throws.
+ * `commit`: the commit the page was built from.
  */
-export function openPage(query: string, recording: Recording, options: { fetch?: Fetch; storage?: Record<string, string> | 'unavailable' } = {}) {
+export function openPage(
+  query: string,
+  recording: Recording,
+  options: { fetch?: Fetch; storage?: Record<string, string> | 'unavailable'; commit?: Commit } = {},
+) {
   const dom = new JSDOM(readFileSync(PAGE, 'utf8'), { url: `${ORIGIN}${query}` });
   const window = dom.window;
   const { storage } = options;
@@ -105,6 +110,7 @@ export function openPage(query: string, recording: Recording, options: { fetch?:
   const authorizations: { url: string; authorization: string | undefined }[] = [];
   const answer = options.fetch ?? replay(recording);
   mountApp(window as unknown as Window, {
+    commit: options.commit,
     fetch: (url, init) => {
       requests.push(url);
       authorizations.push({ url, authorization: init?.headers?.Authorization });
