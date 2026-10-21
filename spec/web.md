@@ -38,7 +38,8 @@ A **link to the commit** the page was built from, in the page's *top right corne
 - The commit: the one `npm run build` and `npm run dev` run in, `git rev-parse HEAD`
   - A pull request's preview: the commit GitHub Actions checks out for it, the pull request merged into its base
 - The repository: GitHub Actions' own, `GITHUB_REPOSITORY`; otherwise the `origin` remote of the checkout
-  - `https://github.com/owner/repo`, with `.git` or not, or `git@github.com:owner/repo.git`
+  - `https://github.com/owner/repo`, with `.git` or not, `git@github.com:owner/repo.git` or `ssh://git@github.com/owner/repo.git`
+  - Credentials in the URL, `https://user:token@github.com/owner/repo`: *left out* of the link
 - No commit, not a git checkout, or no GitHub repository → *no link*, nothing else changes
 - Fixed when the page is built: the same in every browser, *no request* for it
 ## Layout
