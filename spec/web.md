@@ -25,6 +25,7 @@ An optional **token field** next to the text field: a GitHub token, as the CLI's
     - The folder: the agent's root it is in, `.claude/skills`, or `plugins/x/.claude/skills` in a module; the full path on hover
     - The description: at most **2 lines**, then `…`; the whole first sentence on hover
   - `also in` for copies, then a **chip** for each copy: its folder; its full path on hover
+    - The text: the chips separated by `, `, not shown: `also in .agents/skills, .github/skills`
   - The selected skill: an **accent bar** on its left
 - **Right panel**: the selected skill's `SKILL.md`, **rendered Markdown**
   - Its name and description on top, from the front matter; the front matter *not shown* as text
