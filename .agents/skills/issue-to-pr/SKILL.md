@@ -2,7 +2,7 @@ Remove `Delegated to AI` tag from the issue and add `AIRing it` tag to the issue
 
 Fix the issue by following instructions in the repo (see `AGENTS.md`).
 
-When the issue leaves a decision open, ask in #bot31 channel (use `SLACK_BOT_TOKEN`), wait, go on.
+When the issue leaves a decision open, ask in #bot31 channel (ID: C0CAVA7BBEJ), use `SLACK_BOT_TOKEN` for that, wait, go on.
 
 After the PR is created, watch it for new comments and reviews without spending tokens:
 run a background shell loop that polls `gh pr view <n> --json comments,reviews,state`
