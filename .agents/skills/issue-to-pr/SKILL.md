@@ -12,4 +12,6 @@ concerns, then restart the watcher (the 90 min start over).
 
 Stop watching once the PR is merged or closed, or after 90 min with no response.
 
+If there changes in `main` branch since last works rebase the branch and force push changes.
+
 Merge the PR after getting LGTM from two different persons.
