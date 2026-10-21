@@ -83,6 +83,11 @@ Every repository of the organization scanned, **one after another**, a few at a 
   - No repositories → `No repositories found`
 - Click a repository → its skills, as for `owner/repo`, with the dates; *no new request*, the scan is reused
 - Scanning: the progress, `Scanning owner… 3 of 20 repositories · 12 skills`, the skills found so far
+- A **progress bar** under it, while scanning: the share of the repositories scanned, `3` of `20`
+  - Before the repositories are all listed: *indeterminate*, no share yet
+  - A repository scanned, or failed → one step further; full once the last one is
+  - The scan over, failed, or replaced by a new one → *no bar*
+  - A repository's own scan → no bar, its progress indicator only
 - **As they come**, while scanning: the list shown before the scan is over
   - The repositories listed as soon as GitHub lists them, each page of them; `owner · N repositories`, the ones listed so far
   - One not scanned yet → `…` instead of the badge; its badge as soon as it is scanned, its message if it failed
