@@ -93,6 +93,7 @@ Core: fetch → find → parse, the same as the CLI's. Web UI: a *thin client*.
 ## Build and run
 - `npm run build` → static files, for any static host, such as GitHub Pages
 - `npm run dev` → the page on a local server, during development
+- Tests: the page in *jsdom*, GitHub answering from recordings
 ## Publishing
 The page on **GitHub Pages**, at `https://<owner>.github.io/<repo>/`
 - **Republished after each push to `main`**: the GitHub Actions workflow `.github/workflows/pages.yml`
@@ -102,4 +103,3 @@ The page on **GitHub Pages**, at `https://<owner>.github.io/<repo>/`
 - One publication at a time: a newer push waits, the running one is *not* cancelled halfway
 - Only the permissions it needs: reading the repository, writing Pages, the ID token Pages checks the deployment with
 - Once, in the repository's settings: *Pages → Source: GitHub Actions*
-- Tests: the page in *jsdom*, GitHub answering from recordings
