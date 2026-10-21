@@ -8,14 +8,21 @@ A text field **at the top**: `owner/repo`, or a GitHub URL as the CLI takes it
 - Neither a repository nor an organization → a clear message, *no request*
 - No local directories: GitHub only
 ## Token
-An optional **token field** next to the text field: a GitHub token, as the CLI's `--token`, *hidden* as typed
-- Filled → the token for the **GitHub API requests** of the scans, a repository's or an organization's
-  - Leading and trailing spaces ignored; empty → no token, as without the field
+An **Add token** button next to the text field: a GitHub token, as the CLI's `--token`, **saved** in the browser
+- Click → a **token field** in its place, *hidden* as typed, empty and focused, with **Save** and **Cancel**
+  - Save or Enter → the token saved in the browser's *local storage*; the field gone, the button back
+  - Leading and trailing spaces ignored; empty → no token saved, as before the button
+  - Cancel or Escape → nothing changed, the field gone
+- A token saved → the button reads **Change token**, with a **Remove token** button next to it
+  - Remove token → the saved token forgotten: no token, the button `Add token` again
+- Kept across reloads and new tabs: a reload → the saved token used, the button `Change token`
+- The saved token → the token for the **GitHub API requests** of the scans, a repository's or an organization's
   - Read at each scan: a changed token → used from the next scan on
   - An organization's repositories: their files *through the tree*, as without a token, **not** code search, whose limit is about 10 requests a minute
-- *Never* in the page URL, never stored: a shared URL holds no token; a reload → the field empty
-  - Not even before the page's script runs: the field is *not part of the form's own submission*
-- GitHub rejects it → `GitHub rejected the token in the token field`
+- *Never* in the page URL: a shared URL holds no token
+  - Not even before the page's script runs: the token field is *not in the search form*
+- Local storage not available → the token kept for the page only, until a reload
+- GitHub rejects it → `GitHub rejected the saved token`
 - The rate limit with a token → `GitHub rate limit reached; try again in a minute`
 ## Layout
 - **Left panel**: the skills, as the CLI lists them
@@ -75,12 +82,12 @@ Shareable: the page URL holds the state
 - No skills → `No skills found`
 - Warnings → shown above the list, the scan goes on
 - Unreachable repository, GitHub rate limit → a clear message instead of the list
-  - The rate limit: *try again later*; no `GITHUB_TOKEN` in the page, only the token field
+  - The rate limit: *try again later*; no `GITHUB_TOKEN` in the page, only the saved token
 ## Safety
 `SKILL.md` is *untrusted*: rendered **without** raw HTML or scripts
 ## Architecture
 Core: fetch → find → parse, the same as the CLI's. Web UI: a *thin client*.
-- GitHub API from the browser, **no token** unless one is in the token field
+- GitHub API from the browser, **no token** unless one is saved with Add token
 - The core gives a skill's body, for the right panel
 - The core scans an organization: its repositories from the GitHub API, each one scanned as above
 ## Build and run
