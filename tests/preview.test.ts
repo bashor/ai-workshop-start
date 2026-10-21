@@ -173,6 +173,16 @@ test('the Pages workflow: every preview of gh-pages into dist/.pr-preview/, noth
   assert.equal(readFileSync(join(dist, '.pr-preview/7/a/b.js'), 'utf8'), 'b');
 });
 
+test('the Pages workflow: previews of more than a megabyte together, collected as the small ones', (t) => {
+  const { base, origin, clone } = repositories(t);
+  const big = 'x'.repeat(3 * 1024 * 1024);
+  pushPages(base, origin, { '.pr-preview/3/app.js': big, '.pr-preview/7/index.html': 'seven' });
+  const dist = directory(base, 'dist', { 'index.html': 'main' });
+  assert.deepEqual(collect({ cwd: clone, into: dist }), [3, 7]);
+  assert.deepEqual(files(dist), ['.pr-preview/3/app.js', '.pr-preview/7/index.html', 'index.html']);
+  assert.equal(readFileSync(join(dist, '.pr-preview/3/app.js'), 'utf8'), big);
+});
+
 test('the Pages workflow: no gh-pages branch, or no previews on it → dist/ as it is', (t) => {
   const { base, origin, clone } = repositories(t);
   const dist = directory(base, 'dist', { 'index.html': 'main' });

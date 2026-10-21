@@ -54,7 +54,15 @@ export function collect({ cwd, into, remote = 'origin', branch = 'gh-pages' }: {
   git(['fetch', '--quiet', '--no-tags', '--depth=1', remote, `+refs/heads/${branch}:${local}`]);
   const previews = git(['ls-tree', '-d', '--name-only', local, `${PREVIEWS}/`]).toString().split('\n').filter(Boolean);
   if (previews.length === 0) return [];
-  execFileSync('tar', ['-x', '-C', resolve(cwd, into)], { input: git(['archive', '--format=tar', local, '--', PREVIEWS]) });
+  // Through a file, not a buffer: the previews together can be larger than execFileSync's output buffer.
+  const work = mkdtempSync(join(tmpdir(), 'skill-atlas-collect-'));
+  try {
+    const archive = join(work, 'previews.tar');
+    git(['archive', '--format=tar', `--output=${archive}`, local, '--', PREVIEWS]);
+    execFileSync('tar', ['-x', '-f', archive, '-C', resolve(cwd, into)], { stdio: ['ignore', 'pipe', 'pipe'] });
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
   return previews.map((path) => Number(path.slice(PREVIEWS.length + 1))).toSorted((a, b) => a - b);
 }
 
