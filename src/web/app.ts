@@ -239,10 +239,16 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
     showSkill(undefined, 'repository');
   }
 
-  /** `owner/repo · N skills`, the warnings, the filter, then the skills as the CLI lists them. */
+  /** `owner/repo · N skills`, the warnings, the filter, then the skills as the CLI lists them, each a card. */
   function showResult({ repository, skills: found, warnings }: ScanResult) {
-    const summary = element('h2', `${repository.id} · ${found.length} ${found.length === 1 ? 'skill' : 'skills'}`);
+    // The count as a badge; `·` kept in the text, not shown.
+    const summary = element('h2');
     summary.id = 'summary';
+    summary.append(
+      element('span', repository.id, 'repository'),
+      element('span', ' · ', 'separator'),
+      element('span', `${found.length} ${found.length === 1 ? 'skill' : 'skills'}`, 'badge'),
+    );
     const warningList = element('ul');
     warningList.id = 'warnings';
     warningList.append(...warnings.map((warning) => element('li', warning)));
@@ -278,13 +284,23 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
         button.type = 'button';
         button.dataset.path = skill.path;
         if (skill.path === selected) button.setAttribute('aria-current', 'true');
-        button.append(highlighted(skill.name, text, 'name'), highlighted(description, text, 'description'));
-        if (skill.copies.length > 0) button.append(element('span', `also in ${skill.copies.join(', ')}`, 'copies'));
-        button.addEventListener('click', () => {
-          wanted = skill.path;
-          history.pushState(null, '', query({ repo: shown && 'repo' in shown ? shown.repo : undefined, skill: skill.path }));
-          select(skill.path);
-        });
+        const head = element('span', undefined, 'head');
+        const tag = element('span', folder(skill.path), 'folder');
+        tag.title = skill.path;
+        head.append(highlighted(skill.name, text, 'name'), tag);
+        const shownDescription = highlighted(description, text, 'description');
+        shownDescription.title = description;
+        button.append(head, shownDescription);
+        if (skill.copies.length > 0) {
+          const copies = element('span', 'also in ', 'copies');
+          for (const copy of skill.copies) {
+            const chip = element('span', folder(copy), 'chip');
+            chip.title = copy;
+            copies.append(chip);
+          }
+          button.append(copies);
+        }
+        button.addEventListener('click', () => pick(skill.path, 'push'));
         const item = element('li');
         item.append(button);
         items.push(item);
@@ -294,8 +310,43 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
       list.replaceChildren(...items);
     };
     filter.addEventListener('input', showMatching);
+    filter.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowDown') return;
+      const first = list.querySelector<HTMLButtonElement>('button');
+      if (!first) return;
+      event.preventDefault();
+      first.focus();
+      pick(first.dataset.path!, 'replace');
+    });
+    // ↓ and ↑: the next and the previous skill, as a click; ↑ on the first one, back to the filter.
+    list.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+      const buttons = [...list.querySelectorAll<HTMLButtonElement>('button')];
+      const at = buttons.indexOf(event.target as HTMLButtonElement);
+      if (at < 0) return;
+      event.preventDefault();
+      const next = buttons[event.key === 'ArrowDown' ? at + 1 : at - 1];
+      if (next) {
+        next.focus();
+        pick(next.dataset.path!, 'replace');
+      } else if (at === 0) filter.focus();
+    });
     showMatching();
     results.replaceChildren(summary, warningList, bar, list);
+  }
+
+  /** Selects the skill at `path`, and puts it in the page URL: a new history entry, or in place of the current one. */
+  function pick(path: string, entry: 'push' | 'replace') {
+    wanted = path;
+    const url = query({ repo: shown && 'repo' in shown ? shown.repo : undefined, skill: path });
+    if (entry === 'push') history.pushState(null, '', url);
+    else history.replaceState(null, '', url);
+    select(path);
+  }
+
+  /** The agent's root a SKILL.md is in: `<root>/<name>/SKILL.md` → `<root>`. */
+  function folder(path: string) {
+    return path.split('/').slice(0, -2).join('/');
   }
 
   /** `text` in a span, every occurrence of `match` (lowercase) in a mark. */
