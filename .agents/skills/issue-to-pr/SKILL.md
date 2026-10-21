@@ -1,4 +1,4 @@
-Remove `Delegated to AI` tag from the issue and add `AIRing it` tag to the issue.
+First remove `Delegated to AI` tag from the issue, then add `AIRing it` tag to the issue.
 
 Fix the issue by following instructions in the repo (see `AGENTS.md`).
 
