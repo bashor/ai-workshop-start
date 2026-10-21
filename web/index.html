@@ -13,10 +13,18 @@
     <form id="search" role="search">
       <input id="repo" name="repo" type="text" placeholder="owner/repo, owner or a GitHub URL"
              aria-label="GitHub repository or organization" autocomplete="off" spellcheck="false">
-      <input id="token" type="password" placeholder="GitHub token (optional)"
-             aria-label="GitHub token, optional; never stored or put in the page URL" autocomplete="off" spellcheck="false">
       <button id="scan" type="submit">Scan</button>
     </form>
+    <div id="token-controls">
+      <button id="add-token" type="button" title="A GitHub token, for a higher rate limit; saved in this browser, never put in the page URL">Add token</button>
+      <button id="remove-token" type="button" hidden>Remove token</button>
+      <span id="token-editor" hidden>
+        <input id="token" type="password" placeholder="GitHub token"
+               aria-label="GitHub token, saved in this browser, never put in the page URL" autocomplete="off" spellcheck="false">
+        <button id="save-token" type="button">Save</button>
+        <button id="cancel-token" type="button">Cancel</button>
+      </span>
+    </div>
   </header>
   <main>
     <aside id="skills" aria-label="Skills" aria-busy="false">

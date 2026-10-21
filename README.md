@@ -22,9 +22,9 @@ The same in the browser: a search page, a repository's skills on the left, the s
 right. Type `owner/repo` or a GitHub URL, press Enter or **Scan**, click a skill, or go through them with ↓ and ↑. The page URL holds the
 repository and the skill, so it can be shared. Or type an organization, `owner` or
 `https://github.com/owner`: its repositories are listed, each with the number of its skills, as they are scanned; once
-the scan is over, click one to see them. The page calls the GitHub API with no token, unless one is typed into the optional
-token field next to it: like `--token`, for a higher rate limit. The token is never put in the page URL
-or stored.
+the scan is over, click one to see them. The page calls the GitHub API with no token, unless one is saved with the
+**Add token** button next to it: like `--token`, for a higher rate limit. The token is kept in the browser's local
+storage, so it is still there after a reload; **Remove token** forgets it. It is never put in the page URL.
 
 ### Run locally
 
