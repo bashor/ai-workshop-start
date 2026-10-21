@@ -31,6 +31,7 @@ the scan is over, click one to see them. The page calls the GitHub API with no t
 **Add token** button next to it: like `--token`, for a higher rate limit. The token is kept in the browser's local
 storage, so it is still there after a reload; **Remove token** forgets it. It is never put in the page URL. Next to the
 token field, **Create a token** opens GitHub's page for a new fine-grained token, read-only for public repositories.
+The short hash in the top right corner links to the commit the page was built from, on GitHub.
 
 ### Run locally
 
