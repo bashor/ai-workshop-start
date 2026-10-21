@@ -85,8 +85,15 @@ test('the commit: HEAD of the checkout, the repository from origin, https', (t) 
   assert.deepEqual(buildCommit(directory, {}), { sha, url: `https://github.com/owner/repo/commit/${sha}` });
 });
 
-test('the commit: origin with .git, or git@github.com:owner/repo.git', (t) => {
-  for (const remote of ['https://github.com/owner/repo.git', 'git@github.com:owner/repo.git', 'https://www.github.com/owner/repo/']) {
+test('the commit: origin with .git, over SSH, or with credentials in the URL', (t) => {
+  for (const remote of [
+    'https://github.com/owner/repo.git',
+    'https://www.github.com/owner/repo/',
+    'git@github.com:owner/repo.git',
+    'ssh://git@github.com/owner/repo.git',
+    'https://someone@github.com/owner/repo.git',
+    'https://someone:token@github.com/owner/repo',
+  ]) {
     const { directory, sha } = checkout(t, remote);
     assert.deepEqual(buildCommit(directory, {}), { sha, url: `https://github.com/owner/repo/commit/${sha}` }, remote);
   }
