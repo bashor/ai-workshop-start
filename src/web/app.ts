@@ -293,7 +293,9 @@ export function mountApp(window: Window, { fetch }: AppOptions) {
         button.append(head, shownDescription);
         if (skill.copies.length > 0) {
           const copies = element('span', 'also in ', 'copies');
-          for (const copy of skill.copies) {
+          for (const [index, copy] of skill.copies.entries()) {
+            // `, ` kept in the text, not shown.
+            if (index > 0) copies.append(element('span', ', ', 'separator'));
             const chip = element('span', folder(copy), 'chip');
             chip.title = copy;
             copies.append(chip);
