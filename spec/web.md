@@ -13,6 +13,10 @@ An **Add token** button next to the text field: a GitHub token, as the CLI's `--
   - Save or Enter → the token saved in the browser's *local storage*; the field gone, the button back
   - Leading and trailing spaces ignored; empty → no token saved, a saved one forgotten, as Remove token
   - Cancel or Escape → nothing changed, the field gone
+  - A **Create a token** link next to them: GitHub's page for a new *fine-grained* token, in a new tab
+    - `https://github.com/settings/personal-access-tokens/new`, the name `Skill Atlas` and a description filled in
+    - The token *read-only*, for **public repositories** only, GitHub's default there: no permission to pick, nothing else to change
+    - Leaves the page as it is: the field still shown, nothing saved
 - A token saved → the button reads **Change token**, with a **Remove token** button next to it
   - Remove token → the saved token forgotten: no token, the button `Add token` again
 - Kept across reloads and new tabs: a reload → the saved token used, the button `Change token`
